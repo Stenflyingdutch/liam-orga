@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Liam Orga">
+<meta name="theme-color" content="#ffffff">
+<title>Liam Orga</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👶</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body,#root{height:100%;width:100%;overflow:hidden}
+  body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F8FAFC;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  input,button,select{font-family:inherit}button{cursor:pointer;-webkit-appearance:none}input:focus{outline:none}
+  .app{max-width:480px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;position:relative;background:#F8FAFC}
+  .header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;background:#fff;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:100;flex-shrink:0}
+  .header-left{display:flex;align-items:center;gap:10px}.header-emoji{font-size:24px}.header-title{font-size:18px;font-weight:800;color:#1E293B;letter-spacing:-0.5px}.header-date{font-size:11px;color:#94A3B8}
+  .header-right{display:flex;align-items:center;gap:8px}.header-stat{font-size:13px;font-weight:700;color:#2563EB;background:#EFF6FF;padding:5px 10px;border-radius:20px}
+  .sync-dot{width:8px;height:8px;border-radius:4px}.sync-dot.online{background:#059669}.sync-dot.offline{background:#EF4444}
+  .content{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:72px;-webkit-overflow-scrolling:touch}.view-pad{padding:14px 14px 20px}
+  .onboard{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:32px 24px;background:linear-gradient(150deg,#EFF6FF 0%,#FFF1F5 50%,#FFFBEB 100%)}
+  .ob-logo{font-size:64px;margin-bottom:4px}.ob-title{font-size:34px;font-weight:800;color:#1E293B;letter-spacing:-1px}.ob-sub{font-size:15px;color:#64748B;margin-top:2px;margin-bottom:28px}
+  .ob-card{background:#fff;border-radius:16px;padding:18px 22px;width:100%;max-width:320px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px}
+  .ob-row{display:flex;align-items:center;gap:12px}.ob-row+.ob-row{margin-top:14px}.ob-icon{font-size:26px}.ob-label{font-size:14px;font-weight:700;color:#1E293B}.ob-time{font-size:13px;color:#64748B}
+  .ob-info{background:#EEF2FF;border-radius:12px;padding:14px 18px;width:100%;max-width:320px;margin-bottom:16px;border:1px solid #C7D2FE;font-size:13px;line-height:1.6;color:#4338CA}
+  .ob-name-section{width:100%;max-width:320px;margin-bottom:24px;text-align:center}.ob-name-label{font-size:14px;font-weight:600;color:#1E293B;margin-bottom:8px}.ob-name-btns{display:flex;gap:10px}
+  .ob-name-btn{flex:1;padding:14px 0;border-radius:12px;border:2px solid;font-size:16px;font-weight:700;transition:all 0.15s}.ob-name-btn:active{transform:scale(0.97)}
+  .ob-btn{background:#1E293B;color:#fff;border:none;border-radius:14px;padding:14px 44px;font-size:16px;font-weight:700;letter-spacing:-0.3px;transition:transform 0.1s}.ob-btn:active{transform:scale(0.97)}.ob-btn:disabled{opacity:0.4}
+  .greet-card{background:#fff;border-radius:14px;padding:18px 18px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.04)}.greet-title{font-size:22px;font-weight:800;color:#1E293B;letter-spacing:-0.5px}.greet-sub{font-size:13px;color:#64748B;margin:4px 0 8px}
+  .sched-strip{display:flex;align-items:center;justify-content:center;gap:6px;background:#1E293B;border-radius:10px;padding:8px 10px;margin-bottom:16px}
+  .sched-item{display:flex;align-items:center;gap:4px}.sched-dot{width:6px;height:6px;border-radius:3px}.sched-dot.active{background:#059669}.sched-dot.inactive{background:#475569}.sched-text{font-size:11px;color:#E2E8F0;font-weight:500}.sched-div{font-size:11px;color:#475569}
+  .sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.sec-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#1E293B}.sec-count{font-size:12px;font-weight:600}.sec-count.done{color:#059669}.sec-count.pending{color:#94A3B8}
+  .task-card{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;box-shadow:0 1px 2px rgba(0,0,0,0.02);transition:opacity 0.2s}.task-card.done{opacity:0.5}.task-card.compact{padding:10px 12px}
+  .task-row{display:flex;align-items:flex-start;gap:10px}
+  .check{width:22px;height:22px;min-width:22px;border-radius:6px;border:2px solid #CBD5E1;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;margin-top:1px;transition:all 0.15s}.check.checked{background:#059669;border-color:#059669;color:#fff}
+  .task-content{flex:1;min-width:0}.task-text{font-size:14px;font-weight:500;color:#1E293B;line-height:1.35}.task-text.strike{text-decoration:line-through}.compact .task-text{font-size:13px}.task-detail{font-size:12px;color:#64748B;margin-top:4px;font-style:italic}
+  .task-meta{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;align-items:center}
+  .badge{border-radius:5px;font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px;display:inline-block}
+  .task-expand{margin-top:10px;padding-top:10px;border-top:1px solid #F1F5F9}.owner-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.owner-label{font-size:11px;color:#94A3B8;font-weight:600}
+  .owner-pill{border:1.5px solid #E5E7EB;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;background:#fff;transition:all 0.15s}.owner-pill:active{transform:scale(0.96)}
+  .note-row{display:flex;gap:6px;margin-top:8px}.note-input{flex:1;font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid #E5E7EB}.note-save{background:#059669;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:13px}
+  .note-display{font-size:11px;color:#94A3B8;margin-top:4px;margin-left:32px}
+  .progress{display:flex;align-items:center;gap:6px}.progress-bg{flex:1;height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden}.progress-bg.h6{height:6px;border-radius:3px}.progress-bg.h3{height:3px;border-radius:1.5px}.progress-fill{height:100%;border-radius:inherit;transition:width 0.4s ease}.progress-text{font-size:10px;font-weight:700;color:#94A3B8;min-width:28px;text-align:right}
+  .ml-card{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}.ml-title{font-size:14px;font-weight:700;color:#1E293B;margin-bottom:10px}.ml-stats{display:flex;gap:8px;margin-bottom:8px}.ml-stat{flex:1;text-align:center}.ml-num{font-size:20px;font-weight:800}.ml-label{font-size:10px;color:#94A3B8;font-weight:600}
+  .cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cat-btn{background:#fff;border-radius:12px;padding:14px 12px;text-align:left;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.04);font-family:inherit;transition:transform 0.1s;border-top:3px solid}.cat-btn:active{transform:scale(0.97)}.cat-btn-icon{font-size:22px}.cat-btn-title{font-size:12px;font-weight:700;color:#1E293B;line-height:1.3;margin-top:4px}.cat-btn-count{font-size:11px;color:#94A3B8;font-weight:600;margin-top:2px;margin-bottom:6px}
+  .back-btn{border:none;background:none;font-size:14px;font-weight:600;color:#2563EB;padding:2px 0;margin-bottom:10px}
+  .cat-head{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.04);border-left:4px solid}.cat-head-icon{font-size:30px}.cat-head-title{font-size:17px;font-weight:800;color:#1E293B}.cat-head-sub{font-size:12px;color:#94A3B8;margin-top:2px}
+  .freq-head{display:flex;align-items:center;gap:6px;padding:12px 0 4px;font-size:12px;font-weight:700;color:#64748B}.freq-dot{width:7px;height:7px;border-radius:4px}
+  .person-tabs{display:flex;gap:8px;margin-bottom:16px}.person-tab{flex:1;padding:12px 0;border-radius:12px;border:2px solid;font-size:15px;font-weight:700;transition:all 0.15s}.person-tab:active{transform:scale(0.97)}
+  .person-cat-head{display:flex;align-items:center;gap:6px;padding:14px 0 6px;font-size:13px;font-weight:700}.person-cat-count{font-size:11px;color:#94A3B8;font-weight:600;margin-left:auto}
+  .checkin-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}.checkin-title{font-size:19px;font-weight:800;color:#1E293B;margin-bottom:4px}.checkin-sub{font-size:13px;color:#64748B;margin-bottom:18px}
+  .checkin-q{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #F1F5F9}.checkin-q:last-of-type{border-bottom:none}.checkin-num{width:24px;height:24px;min-width:24px;border-radius:7px;background:#EEF2FF;color:#4338CA;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}.checkin-text{font-size:14px;color:#1E293B;line-height:1.45;font-weight:500}
+  .tip-box{margin-top:16px;padding:14px 16px;border-radius:12px;border:1px solid}.tip-box.yellow{background:#FFFBEB;border-color:#FDE68A}.tip-box.green{background:#F0FDF4;border-color:#BBF7D0}.tip-title{font-size:14px;font-weight:700;margin-bottom:4px}.tip-text{font-size:13px;line-height:1.5}.tip-box.yellow .tip-title,.tip-box.yellow .tip-text{color:#92400E}.tip-box.green .tip-title,.tip-box.green .tip-text{color:#166534}
+  .celebration{text-align:center;padding:20px;background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border-radius:14px;margin-bottom:16px}.celebration-emoji{font-size:40px}.celebration-text{font-size:15px;font-weight:700;color:#059669;margin-top:4px}
+  .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:#fff;border-top:1px solid #E5E7EB;padding:4px 6px;padding-bottom:max(6px,env(safe-area-inset-bottom));z-index:100;flex-shrink:0}
+  .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 0;border:none;background:none;transition:all 0.15s;border-radius:10px}.nav-btn.active{background:#EFF6FF}.nav-icon{font-size:18px}.nav-label{font-size:10px;font-weight:500;color:#94A3B8}.nav-btn.active .nav-label{font-weight:700;color:#2563EB}
+  .loading{display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:18px;color:#64748B;flex-direction:column;gap:12px}
+  .spinner{width:32px;height:32px;border:3px solid #E5E7EB;border-top-color:#2563EB;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="root"><div class="loading"><div class="spinner"></div><span>Laden...</span></div></div>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyBQmM0NrGOC9od2nhWOpFaS2u7XFB1fVb8",authDomain:"maxi-orga.firebaseapp.com",projectId:"maxi-orga",storageBucket:"maxi-orga.firebasestorage.app",messagingSenderId:"446112436224",appId:"1:446112436224:web:797b842a4e9f2ec0a788e5"});
+const db=firebase.firestore();db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+</script>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useMemo,useRef}=React;
+const PEOPLE={SANDER:"Sander",NATA:"Nata",BOTH:"Beide",NANNY:"Nanny"};
+const CATEGORIES=[
+{id:"daily",title:"Tägliche Organisation & Care-Arbeit",icon:"☀️",color:"#E8A317",tasks:[
+{id:"d1",text:"Wickeltasche packen",detail:"Windeln, Feuchttücher, Wechselkleidung, Snacks, Trinkflasche",freq:"daily",default_owner:"NATA",time:"morning"},
+{id:"d2",text:"Kita-Tasche vorbereiten",freq:"daily",default_owner:"SANDER",time:"morning"},
+{id:"d3",text:"Kleidung wettergerecht auswählen",freq:"daily",default_owner:"NATA",time:"morning"},
+{id:"d4",text:"Absprache: Wer bringt? Wer holt?",freq:"daily",default_owner:"BOTH",time:"morning"},
+{id:"d5",text:"Essen vorbereiten / Brotdose packen",freq:"daily",default_owner:"NATA",time:"morning"},
+{id:"d6",text:"Abendroutine organisieren",detail:"Baden, Schlafanzug, Buch, Einschlafen",freq:"daily",default_owner:"BOTH",time:"evening"},
+{id:"d7",text:"Nachts reagieren (abwechselnd!)",freq:"daily",default_owner:"BOTH",time:"evening"},
+{id:"d8",text:"Wäsche sortieren, waschen, wegräumen",freq:"weekly",default_owner:"SANDER"},
+{id:"d9",text:"Ordnung im Kinderzimmer halten",freq:"weekly",default_owner:"BOTH"},
+{id:"d10",text:"Spielzeug rotieren / aufräumen",freq:"monthly",default_owner:"NATA"},
+{id:"d11",text:"Entwicklung dokumentieren (optional)",freq:"weekly",default_owner:"BOTH"}]},
+{id:"kita",title:"Kita-Alltag",icon:"🏫",color:"#2563EB",tasks:[
+{id:"k1",text:"Bring-/Abholzeiten klar definiert",freq:"setup",default_owner:"BOTH"},
+{id:"k2",text:"Wöchentlicher Wechselplan (fixe Tage)",freq:"weekly",default_owner:"BOTH"},
+{id:"k4",text:"Wechselkleidung kontrollieren",freq:"weekly",default_owner:"NATA"},
+{id:"k5",text:"Matschkleidung prüfen",freq:"weekly",default_owner:"SANDER"},
+{id:"k6",text:"Hausschuhe ersetzen",freq:"monthly",default_owner:"NATA"},
+{id:"k7",text:"Fotos / Elterninfos lesen & weitergeben",freq:"daily",default_owner:"BOTH"},
+{id:"k8",text:"Elternabende wahrnehmen (abwechselnd)",freq:"quarterly",default_owner:"BOTH"},
+{id:"k9",text:"Entwicklungsgespräche vorbereiten",freq:"quarterly",default_owner:"BOTH"},
+{id:"k10",text:"Kita-Schließzeiten im Kalender blocken",freq:"quarterly",default_owner:"SANDER"},
+{id:"k11",text:"Urlaubsplanung an Kita anpassen",freq:"quarterly",default_owner:"BOTH"}]},
+{id:"health",title:"Krankheitsmanagement",icon:"🏥",color:"#DC2626",tasks:[
+{id:"h1",text:"Wer bleibt bei Krankheit zuhause?",freq:"asneeded",default_owner:"BOTH"},
+{id:"h2",text:"Backup klären (Großeltern, Babysitter)",freq:"setup",default_owner:"SANDER"},
+{id:"h3",text:"Fiebernacht: wer übernimmt?",freq:"asneeded",default_owner:"BOTH"},
+{id:"h4",text:"Arzttermin: wer organisiert, wer geht?",freq:"asneeded",default_owner:"BOTH"},
+{id:"h5",text:"Krankschreibung Arbeitgeber",freq:"asneeded",default_owner:"BOTH"},
+{id:"h6",text:"Medikamente besorgen",freq:"asneeded",default_owner:"SANDER"},
+{id:"h7",text:"Kita-Wiedereinstieg koordinieren",freq:"asneeded",default_owner:"NATA"}]},
+{id:"clothing",title:"Kleidung & Wachstum",icon:"👕",color:"#7C3AED",tasks:[
+{id:"c1",text:"Größe prüfen",freq:"bimonthly",default_owner:"NATA"},
+{id:"c2",text:"Saisonwechsel (Winter/Sommer)",freq:"bimonthly",default_owner:"NATA"},
+{id:"c3",text:"Schuhe neu kaufen",freq:"bimonthly",default_owner:"SANDER"},
+{id:"c4",text:"Regen-/Schneeausstattung",freq:"bimonthly",default_owner:"SANDER"},
+{id:"c5",text:"Schlafsack anpassen",freq:"bimonthly",default_owner:"NATA"},
+{id:"c6",text:"Zu kleine Kleidung aussortieren",freq:"bimonthly",default_owner:"NATA"},
+{id:"c7",text:"Neue Unterwäsche/Bodys auffüllen",freq:"bimonthly",default_owner:"SANDER"}]},
+{id:"food",title:"Ernährung & Vorrat",icon:"🍽️",color:"#059669",tasks:[
+{id:"f1",text:"Kita-Essen-Infos im Blick behalten",freq:"daily",default_owner:"NATA"},
+{id:"f2",text:"Snackvorrat",freq:"weekly",default_owner:"SANDER"},
+{id:"f3",text:"Trinkflasche reinigen",freq:"daily",default_owner:"BOTH"},
+{id:"f4",text:"Essensplanung für Abende",freq:"weekly",default_owner:"NATA"},
+{id:"f5",text:"Lieblingsessen kennen",freq:"ongoing",default_owner:"BOTH"},
+{id:"f6",text:"Neue Phasen gemeinsam tragen",detail:"z.B. 'nur Nudeln'-Phase",freq:"ongoing",default_owner:"BOTH"}]},
+{id:"development",title:"Entwicklung & Förderung",icon:"🌱",color:"#0891B2",tasks:[
+{id:"e1",text:"Sprachentwicklung beobachten",freq:"ongoing",default_owner:"BOTH"},
+{id:"e2",text:"Bücher austauschen",freq:"monthly",default_owner:"NATA"},
+{id:"e3",text:"Turnen / Musik / Schwimmen organisieren",freq:"monthly",default_owner:"SANDER"},
+{id:"e4",text:"Spielzeug anpassen",freq:"monthly",default_owner:"NATA"},
+{id:"e5",text:"Kindergeburtstage organisieren",freq:"asneeded",default_owner:"BOTH"},
+{id:"e6",text:"Soziale Kontakte pflegen",freq:"weekly",default_owner:"BOTH"}]},
+{id:"admin",title:"Administration & Langfristiges",icon:"📋",color:"#EA580C",tasks:[
+{id:"a1",text:"Kita-Beiträge prüfen",freq:"monthly",default_owner:"SANDER"},
+{id:"a2",text:"Steuerliche Themen",freq:"quarterly",default_owner:"SANDER"},
+{id:"a3",text:"Versicherungen",freq:"quarterly",default_owner:"SANDER"},
+{id:"a4",text:"Sparpläne",freq:"quarterly",default_owner:"SANDER"},
+{id:"a5",text:"Reisepass verlängern",freq:"asneeded",default_owner:"NATA"},
+{id:"a6",text:"U-Untersuchungen",freq:"quarterly",default_owner:"NATA"},
+{id:"a7",text:"Zahnarztstart",freq:"setup",default_owner:"NATA"}]},
+{id:"nanny",title:"Nanny-Management",icon:"👩‍👦",color:"#DB2777",tasks:[
+{id:"n1",text:"Wie kurzfristig ist sie verfügbar?",freq:"setup",default_owner:"BOTH"},
+{id:"n2",text:"Wer ruft sie an?",freq:"setup",default_owner:"SANDER"},
+{id:"n3",text:"Wer koordiniert Stunden?",freq:"weekly",default_owner:"SANDER"},
+{id:"n4",text:"Wer organisiert Bezahlung?",freq:"monthly",default_owner:"SANDER"},
+{id:"n5",text:"Übergabeinfos vorbereiten",detail:"Medikamente, Ablauf, Kita-Infos",freq:"daily",default_owner:"NATA",time:"afternoon"}]},
+{id:"partnership",title:"Partnerschafts-Realität",icon:"💑",color:"#4F46E5",tasks:[
+{id:"p1",text:"Wer hat Mental Load? – Check-in",freq:"weekly",default_owner:"BOTH"},
+{id:"p2",text:"Wer denkt an Geschenke?",freq:"asneeded",default_owner:"NATA"},
+{id:"p3",text:"Wer weiß, wann neue Schuhe nötig sind?",freq:"ongoing",default_owner:"NATA"},
+{id:"p4",text:"Wer fragt den anderen, ob etwas 'passt'?",freq:"ongoing",default_owner:"BOTH"}]}
+];
+const FL={daily:"Täglich",weekly:"Wöchentlich",monthly:"Monatlich",bimonthly:"Alle 2–3 Mon.",quarterly:"Vierteljährlich",asneeded:"Bei Bedarf",ongoing:"Laufend",setup:"Einrichten"};
+const FC={daily:"#DC2626",weekly:"#E8A317",monthly:"#2563EB",bimonthly:"#7C3AED",quarterly:"#4F46E5",asneeded:"#6B7280",ongoing:"#059669",setup:"#DB2777"};
+const OC={SANDER:["#DBEAFE","#1D4ED8"],NATA:["#FCE7F3","#BE185D"],BOTH:["#E0E7FF","#4338CA"],NANNY:["#FEF3C7","#D97706"]};
+const dk=()=>new Date().toISOString().slice(0,10);
+const wk=()=>{const d=new Date(),j=new Date(d.getFullYear(),0,1);return`${d.getFullYear()}-W${Math.ceil(((d-j)/864e5+j.getDay()+1)/7)}`};
+const tod=()=>{const h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"};
+const defOwn=()=>{const d={};CATEGORIES.forEach(c=>c.tasks.forEach(t=>{d[t.id]=t.default_owner}));return d};
+
+function App(){
+  const[view,setView]=useState("dashboard");
+  const[ts,setTs]=useState({});
+  const[ow,setOw]=useState(defOwn());
+  const[notes,setNotes]=useState({});
+  const[selCat,setSelCat]=useState(null);
+  const[fp,setFp]=useState("SANDER");
+  const[cu,setCu]=useState(()=>localStorage.getItem("liam_user")||null);
+  const[showOb,setShowOb]=useState(()=>!localStorage.getItem("liam_user"));
+  const[expT,setExpT]=useState(null);
+  const[enote,setEnote]=useState(null);
+  const[ni,setNi]=useState("");
+  const[timeOD]=useState(tod);
+  const[online,setOnline]=useState(true);
+  const[loaded,setLoaded]=useState(false);
+  const skip=useRef(false);
+
+  useEffect(()=>{
+    const u=[];
+    u.push(db.collection("state").doc("taskStates").onSnapshot(d=>{if(d.exists){skip.current=true;setTs(d.data());setTimeout(()=>skip.current=false,100)}setLoaded(true)}));
+    u.push(db.collection("state").doc("owners").onSnapshot(d=>{if(d.exists){skip.current=true;setOw(p=>({...defOwn(),...d.data()}));setTimeout(()=>skip.current=false,100)}}));
+    u.push(db.collection("state").doc("notes").onSnapshot(d=>{if(d.exists){skip.current=true;setNotes(d.data());setTimeout(()=>skip.current=false,100)}}));
+    const on=()=>setOnline(true),off=()=>setOnline(false);
+    window.addEventListener("online",on);window.addEventListener("offline",off);
+    return()=>{u.forEach(x=>x());window.removeEventListener("online",on);window.removeEventListener("offline",off)};
+  },[]);
+
+  useEffect(()=>{if(!loaded||skip.current)return;const t=setTimeout(()=>db.collection("state").doc("taskStates").set(ts),300);return()=>clearTimeout(t)},[ts,loaded]);
+  useEffect(()=>{if(!loaded||skip.current)return;const t=setTimeout(()=>db.collection("state").doc("owners").set(ow),300);return()=>clearTimeout(t)},[ow,loaded]);
+  useEffect(()=>{if(!loaded||skip.current)return;const t=setTimeout(()=>db.collection("state").doc("notes").set(notes),300);return()=>clearTimeout(t)},[notes,loaded]);
+
+  const ck=useCallback((id,f)=>f==="daily"?`${id}_${dk()}`:f==="weekly"?`${id}_${wk()}`:`${id}_current`,[]);
+  const isDone=useCallback((id,f)=>!!ts[ck(id,f)],[ts,ck]);
+  const toggle=useCallback((id,f)=>{const k=ck(id,f);setTs(p=>({...p,[k]:!p[k]}))},[ck]);
+  const chgOwn=useCallback((id,o)=>setOw(p=>({...p,[id]:o})),[]);
+
+  const all=useMemo(()=>CATEGORIES.flatMap(c=>c.tasks.map(t=>({...t,category:c,owner:ow[t.id]||t.default_owner}))),[ow]);
+  const stats=useMemo(()=>{let t=0,d=0;const pp={SANDER:{t:0,d:0},NATA:{t:0,d:0},BOTH:{t:0,d:0},NANNY:{t:0,d:0}};all.forEach(x=>{const c=isDone(x.id,x.freq);t++;if(c)d++;if(pp[x.owner]){pp[x.owner].t++;if(c)pp[x.owner].d++}});return{total:t,done:d,pp}},[all,isDone]);
+  const smart=useMemo(()=>({morning:all.filter(t=>t.time==="morning"&&t.freq==="daily"),afternoon:all.filter(t=>t.time==="afternoon"&&t.freq==="daily"),evening:all.filter(t=>t.time==="evening"&&t.freq==="daily"),daily:all.filter(t=>t.freq==="daily"&&!t.time)}),[all]);
+  const today=useMemo(()=>{const f=["daily"];if(new Date().getDay()===1)f.push("weekly");if(new Date().getDate()===1)f.push("monthly");return all.filter(t=>f.includes(t.freq))},[all]);
+  const pTasks=useCallback(p=>all.filter(t=>t.owner===p||t.owner==="BOTH"),[all]);
+
+  if(showOb)return(
+    <div className="onboard">
+      <div className="ob-logo">👶</div><h1 className="ob-title">Liam Orga</h1><p className="ob-sub">Organisation · Care · 50/50</p>
+      <div className="ob-card"><div className="ob-row"><span className="ob-icon">🏫</span><div><span className="ob-label">Kita ab März</span><br/><span className="ob-time">8:00–15:00 · Mo–Fr</span></div></div><div className="ob-row"><span className="ob-icon">👩‍👦</span><div><span className="ob-label">Nanny</span><br/><span className="ob-time">15:00–19:00 · Mo–Do</span></div></div></div>
+      <div className="ob-info"><strong>50/50 Mental-Load-Prinzip:</strong> Alle Änderungen werden in Echtzeit synchronisiert. Beide sehen denselben Stand.</div>
+      <div className="ob-name-section"><div className="ob-name-label">Wer bist du?</div><div className="ob-name-btns">
+        <button className="ob-name-btn" style={{borderColor:"#1D4ED8",backgroundColor:cu==="SANDER"?"#1D4ED8":"transparent",color:cu==="SANDER"?"#fff":"#1D4ED8"}} onClick={()=>setCu("SANDER")}>Sander</button>
+        <button className="ob-name-btn" style={{borderColor:"#BE185D",backgroundColor:cu==="NATA"?"#BE185D":"transparent",color:cu==="NATA"?"#fff":"#BE185D"}} onClick={()=>setCu("NATA")}>Nata</button>
+      </div></div>
+      <button className="ob-btn" disabled={!cu} onClick={()=>{localStorage.setItem("liam_user",cu);setFp(cu);setShowOb(false)}}>Los geht's →</button>
+    </div>
+  );
+
+  const PB=({done:d,total:t,color:c="#2563EB",size:s="normal"})=>{const p=t>0?Math.round(d/t*100):0;return(<div className="progress"><div className={`progress-bg ${s==="large"?"h6":s==="small"?"h3":""}`}><div className="progress-fill" style={{width:`${p}%`,backgroundColor:c}}/></div><span className="progress-text">{p}%</span></div>)};
+
+  const TI=({task:t,showCat:sc,compact:cp})=>{
+    const d=isDone(t.id,t.freq),o=ow[t.id]||t.default_owner,ex=expT===t.id,oc=OC[o]||OC.BOTH,hn=notes[t.id];
+    return(<div className={`task-card ${d?"done":""} ${cp?"compact":""}`}>
+      <div className="task-row">
+        <button className={`check ${d?"checked":""}`} onClick={()=>toggle(t.id,t.freq)}>{d?"✓":""}</button>
+        <div className="task-content" onClick={()=>setExpT(ex?null:t.id)} style={{cursor:"pointer"}}>
+          <div className={`task-text ${d?"strike":""}`}>{t.text}</div>
+          {t.detail&&ex&&<div className="task-detail">{t.detail}</div>}
+          <div className="task-meta">{sc&&<span style={{fontSize:11,fontWeight:600,color:t.category?.color}}>{t.category?.icon}</span>}<span className="badge" style={{backgroundColor:FC[t.freq]+"18",color:FC[t.freq]}}>{FL[t.freq]}</span><span className="badge" style={{backgroundColor:oc[0],color:oc[1],fontSize:9,padding:"1px 5px"}}>{PEOPLE[o]}</span></div>
+        </div>
+      </div>
+      {ex&&<div className="task-expand"><div className="owner-row"><span className="owner-label">Zuständig:</span>{["SANDER","NATA","BOTH","NANNY"].map(p=>{const a=o===p,pc=OC[p];return<button key={p} className="owner-pill" style={{borderColor:a?pc[1]:"#E5E7EB",backgroundColor:a?pc[0]:"#fff",color:a?pc[1]:"#94A3B8"}} onClick={()=>chgOwn(t.id,p)}>{PEOPLE[p]}</button>})}</div>
+        <div className="note-row"><input className="note-input" value={enote===t.id?ni:(notes[t.id]||"")} placeholder="Notiz..." onFocus={()=>{setEnote(t.id);setNi(notes[t.id]||"")}} onChange={e=>{setEnote(t.id);setNi(e.target.value)}} onKeyDown={e=>{if(e.key==="Enter"){setNotes(p=>({...p,[t.id]:ni}));setEnote(null)}}}/>{enote===t.id&&<button className="note-save" onClick={()=>{setNotes(p=>({...p,[t.id]:ni}));setEnote(null)}}>✓</button>}</div></div>}
+      {hn&&!ex&&<div className="note-display">💬 {notes[t.id]}</div>}
+    </div>)};
+
+  const TS=({title:ti,icon:ic,tasks:ta})=>{if(!ta.length)return null;const dc=ta.filter(t=>isDone(t.id,t.freq)).length,ad=dc===ta.length&&ta.length>0;
+    return(<div style={{marginBottom:16}}><div className="sec-head"><div className="sec-title"><span>{ic}</span><span>{ti}</span></div><span className={`sec-count ${ad?"done":"pending"}`}>{dc}/{ta.length}</span></div>{ad&&<div className="celebration"><div className="celebration-emoji">✨</div><div className="celebration-text">Alles erledigt!</div></div>}{ta.map(t=><TI key={t.id} task={t} showCat compact/>)}</div>)};
+
+  const dash=()=>{const gr=timeOD==="morning"?"Guten Morgen":timeOD==="midday"?"Mahlzeit":timeOD==="afternoon"?"Nachmittag":"Guten Abend";const td=today.filter(t=>isDone(t.id,t.freq)).length;const un=PEOPLE[cu]||"";
+    return(<div className="view-pad">
+      <div className="greet-card"><div className="greet-title">{gr}{un?`, ${un}`:""} 👋</div><div className="greet-sub">Heute: <strong>{td}</strong> von <strong>{today.length}</strong> Aufgaben erledigt</div><PB done={td} total={today.length} size="large"/></div>
+      <div className="sched-strip"><div className="sched-item"><div className={`sched-dot ${timeOD==="morning"||timeOD==="midday"?"active":"inactive"}`}/><span className="sched-text">🏫 Kita 8–15h</span></div><span className="sched-div">→</span><div className="sched-item"><div className={`sched-dot ${timeOD==="afternoon"?"active":"inactive"}`}/><span className="sched-text">👩‍👦 Nanny 15–19h</span></div><span className="sched-div">→</span><div className="sched-item"><div className={`sched-dot ${timeOD==="evening"?"active":"inactive"}`}/><span className="sched-text">🏠 Abend</span></div></div>
+      <TS title="Morgens" icon="🌅" tasks={smart.morning}/><TS title="Nanny-Übergabe (15h)" icon="🔄" tasks={smart.afternoon}/><TS title="Abends" icon="🌙" tasks={smart.evening}/><TS title="Laufend heute" icon="📋" tasks={smart.daily}/>
+      <div className="ml-card"><div className="ml-title">⚖️ Mental Load Balance</div><div className="ml-stats">{[["SANDER","#1D4ED8"],["BOTH","#4338CA"],["NATA","#BE185D"]].map(([p,c])=>{const s=stats.pp[p];return<div key={p} className="ml-stat"><div className="ml-num" style={{color:c}}>{s.t}</div><div className="ml-label">{PEOPLE[p]}</div><PB done={s.d} total={s.t} color={c} size="small"/></div>})}</div></div>
+      <div style={{fontSize:15,fontWeight:700,color:"#1E293B",marginBottom:10}}>📂 Alle Bereiche</div>
+      <div className="cat-grid">{CATEGORIES.map(cat=>{const cd=cat.tasks.filter(t=>isDone(t.id,t.freq)).length;return<button key={cat.id} className="cat-btn" style={{borderTopColor:cat.color}} onClick={()=>{setSelCat(cat.id);setView("category")}}><div className="cat-btn-icon">{cat.icon}</div><div className="cat-btn-title">{cat.title}</div><div className="cat-btn-count">{cd}/{cat.tasks.length}</div><PB done={cd} total={cat.tasks.length} color={cat.color} size="small"/></button>})}</div>
+    </div>)};
+
+  const catV=()=>{
+    if(!selCat)return(<div className="view-pad"><div style={{fontSize:17,fontWeight:700,color:"#1E293B",marginBottom:14}}>Alle Bereiche</div><div className="cat-grid">{CATEGORIES.map(cat=>{const cd=cat.tasks.filter(t=>isDone(t.id,t.freq)).length;return<button key={cat.id} className="cat-btn" style={{borderTopColor:cat.color}} onClick={()=>setSelCat(cat.id)}><div className="cat-btn-icon">{cat.icon}</div><div className="cat-btn-title">{cat.title}</div><div className="cat-btn-count">{cd}/{cat.tasks.length}</div><PB done={cd} total={cat.tasks.length} color={cat.color} size="small"/></button>})}</div></div>);
+    const cat=CATEGORIES.find(c=>c.id===selCat);if(!cat)return null;
+    const g={};cat.tasks.forEach(t=>{if(!g[t.freq])g[t.freq]=[];g[t.freq].push(t)});const cd=cat.tasks.filter(t=>isDone(t.id,t.freq)).length;
+    return(<div className="view-pad"><button className="back-btn" onClick={()=>setSelCat(null)}>← Zurück</button><div className="cat-head" style={{borderLeftColor:cat.color}}><span className="cat-head-icon">{cat.icon}</span><div><div className="cat-head-title">{cat.title}</div><div className="cat-head-sub">{cd} von {cat.tasks.length} erledigt</div><div style={{marginTop:6,maxWidth:180}}><PB done={cd} total={cat.tasks.length} color={cat.color}/></div></div></div>
+      {Object.entries(g).map(([f,ta])=><div key={f}><div className="freq-head"><span className="freq-dot" style={{backgroundColor:FC[f]}}/>{FL[f]}</div>{ta.map(t=><TI key={t.id} task={{...t,category:cat}}/>)}</div>)}</div>)};
+
+  const perV=()=>{
+    const p=fp,ta=pTasks(p),pd=ta.filter(t=>isDone(t.id,t.freq)).length,pc=p==="SANDER"?"#1D4ED8":"#BE185D";
+    const g={};ta.forEach(t=>{const c=t.category.id;if(!g[c])g[c]={cat:t.category,tasks:[]};g[c].tasks.push(t)});
+    return(<div className="view-pad">
+      <div className="person-tabs">{["SANDER","NATA"].map(pp=>{const a=p===pp,c=pp==="SANDER"?"#1D4ED8":"#BE185D";return<button key={pp} className="person-tab" style={{borderColor:c,backgroundColor:a?c:"transparent",color:a?"#fff":c}} onClick={()=>setFp(pp)}>{PEOPLE[pp]}</button>})}</div>
+      <div className="ml-card" style={{borderLeft:`3px solid ${pc}`}}><div style={{fontSize:18,fontWeight:800,color:"#1E293B"}}>{PEOPLE[p]}s Aufgaben</div><div style={{fontSize:13,color:"#94A3B8",margin:"4px 0 8px"}}>{pd} von {ta.length} erledigt</div><PB done={pd} total={ta.length} color={pc}/></div>
+      {Object.values(g).map(({cat,tasks:ct})=>{const un=ct.filter(t=>!isDone(t.id,t.freq)),dn=ct.filter(t=>isDone(t.id,t.freq));return<div key={cat.id}><div className="person-cat-head" style={{color:cat.color}}>{cat.icon} {cat.title}<span className="person-cat-count">{dn.length}/{ct.length}</span></div>{un.map(t=><TI key={t.id} task={t} compact/>)}{dn.map(t=><TI key={t.id} task={t} compact/>)}</div>})}
+    </div>)};
+
+  const chkV=()=>(<div className="view-pad"><div className="checkin-card"><div className="checkin-title">⚖️ Wöchentlicher Check-in</div><div className="checkin-sub">Setzt euch zusammen und geht diese Fragen durch:</div>
+    {["Wer hat diese Woche mehr Mental Load getragen?","Gibt es Aufgaben, die umverteilt werden sollten?","Lief das Nanny-Management 50/50?","Sind die Kita-Absprachen klar?","Wer denkt gerade an die nächsten anstehenden Dinge?","Was hat gut geklappt?","Was braucht einer von euch gerade mehr?"].map((q,i)=><div key={i} className="checkin-q"><span className="checkin-num">{i+1}</span><span className="checkin-text">{q}</span></div>)}
+    <div className="tip-box yellow"><div className="tip-title">🔄 Aufgaben umverteilen</div><div className="tip-text">Wechselt zur „Meine"-Ansicht und passt Zuständigkeiten an. Ziel: Über das Jahr gerechnet 50/50.</div></div>
+    <div className="tip-box green"><div className="tip-title">💡 Tipp</div><div className="tip-text">Nicht einer „managt die Nanny" dauerhaft – auch das ist Mental Load. Nanny-Management ebenfalls 50/50 oder fest zugeteilt.</div></div></div></div>);
+
+  return(<div className="app">
+    <div className="header"><div className="header-left"><span className="header-emoji">👶</span><div><div className="header-title">Liam Orga</div><div className="header-date">{new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})}</div></div></div><div className="header-right"><div className={`sync-dot ${online?"online":"offline"}`} title={online?"Synchronisiert":"Offline"}/><div className="header-stat">{stats.done}/{stats.total} ✓</div></div></div>
+    <div className="content">{view==="dashboard"&&dash()}{view==="category"&&catV()}{view==="person"&&perV()}{view==="checkin"&&chkV()}</div>
+    <div className="nav">{[{id:"dashboard",icon:"🏠",label:"Heute"},{id:"person",icon:"👤",label:"Meine"},{id:"category",icon:"📂",label:"Bereiche"},{id:"checkin",icon:"⚖️",label:"Check-in"}].map(n=><button key={n.id} className={`nav-btn ${view===n.id?"active":""}`} onClick={()=>{setView(n.id);if(n.id==="category")setSelCat(null)}}><span className="nav-icon">{n.icon}</span><span className="nav-label">{n.label}</span></button>)}</div>
+  </div>);
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
