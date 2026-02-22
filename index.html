@@ -324,13 +324,11 @@ const PB=({d,t,c="#2563EB",s="n"})=>{const p=t>0?Math.round(d/t*100):0;return(<d
 
 const TC=({t,showCat})=>{
 const d=isD(t.id,t.f,sDay),ow=t.owner||gOw(t.id,sDay),oc=OC[ow]||OC.BOTH;
-const mk=`${t.id}_${dky(sDay)}`;const mc=(msgs[t.id]||[]).length+(msgs[mk]||[]).length;
 return(<div className={`tc ${d?"done":""}`}><div className="tc-r">
 <button className={`ck ${d?"on":""}`} onClick={()=>tog(t.id,t.f,sDay)}>{d?"✓":""}</button>
 <div className="tc-c"><div className="tc-t" style={d?{textDecoration:"line-through"}:{}}>{t.x}</div>
 <div className="tc-m">{showCat&&t.cat&&<span style={{fontSize:10,fontWeight:600,color:t.cat.c}}>{t.cat.i}</span>}
-<span className="bg" style={{backgroundColor:FC[t.f]+"18",color:FC[t.f]}}>{FL[t.f]}</span>
-{mc>0&&<span style={{fontSize:9,color:"#94A3B8"}}>💬{mc}</span>}</div></div>
+<span className="bg" style={{backgroundColor:FC[t.f]+"18",color:FC[t.f]}}>{FL[t.f]}</span></div></div>
 <button className="tc-ob" style={{borderColor:oc[1],color:oc[1],background:oc[0]}} onClick={()=>{setFd({tid:t.id,per:ow,scope:"day"});setMod({type:"assign"})}}>{P[ow]?.slice(0,1)}</button>
 </div></div>)};
 
@@ -372,76 +370,120 @@ return(<div className="vp"><DaySel/>
 return<div key={cat.id}><div className="pch" style={{color:cat.c}}>{cat.i} {cat.t}<span className="pcc">{dn2.length}/{ct.length}</span></div>
 {un.map(t=><TC key={t.id} t={t}/>)}{dn2.map(t=><TC key={t.id} t={t}/>)}</div>})}
 </div>)};
-// CHAT VIEW - organized by categories
+// CHAT VIEW
 const chatV=()=>{
-// Level 1: category list
-if(!cCat&&!cTask){
-const catMsgs={};
-Object.entries(msgs).forEach(([k,m])=>{if(!Array.isArray(m)||!m.length)return;
-const tid=k.split("_")[0];const task=tMap[tid];if(!task)return;
-if(!catMsgs[task.ct])catMsgs[task.ct]={cnt:0,unread:0,last:0};
-catMsgs[task.ct].cnt+=m.length;
-const rd=rdM[k]||0;catMsgs[task.ct].unread+=m.slice(rd).filter(x=>x.fr!==cu).length;
-const lt=m[m.length-1]?.ts||0;if(lt>catMsgs[task.ct].last)catMsgs[task.ct].last=lt;
-});
-return(<div className="vp">
-<div style={{fontSize:16,fontWeight:700,color:"#1E293B",marginBottom:4}}>💬 Nachrichten</div>
-<div style={{fontSize:11,color:"#94A3B8",marginBottom:12}}>Wähle einen Bereich</div>
-{CL.map(cat=>{const cm=catMsgs[cat.id];const tasks=tl.filter(t=>t.ct===cat.id);
-return<button key={cat.id} className="ccb" onClick={()=>setCCat(cat.id)}>
-<span className="cci">{cat.i}</span><span className="cct">{cat.t}</span>
-<span className="ccn">{tasks.length} Aufgaben</span>
-{cm&&cm.unread>0&&<span className="ubg">{cm.unread}</span>}
-</button>})}
-</div>)}
+// Thread view - messages for a specific task
+if(cTask){
+const t=tMap[cTask];
+const cat=t?cMap[t.ct]:null;
+const mk=cTask;
+const mList=msgs[mk]||[];
+mkRd(mk);
+return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+<div className="th">
+<button className="th-bk" onClick={()=>setCTask(null)}>←</button>
+<div style={{flex:1}}>
+<div className="th-t">{t?t.x:"?"}</div>
+<div className="th-s">{cat?cat.i+" "+cat.t:""}</div>
+</div>
+</div>
+<div className="tmsgs">
+{mList.length===0&&<div style={{textAlign:"center",padding:40,color:"#94A3B8",fontSize:13}}>Noch keine Nachrichten. Schreib die erste!</div>}
+{mList.map(function(m,i){return(<div key={i} className={"mb "+(m.fr===cu?"mine":"theirs")}>
+<div>{m.t}</div>
+<div className="mbi">{P[m.fr]} · {fmtT(m.ts)}</div>
+</div>)})}
+</div>
+<MI onSend={function(text){addM(mk,text)}} ph="Nachricht schreiben..."/>
+</div>);
+}
 
-// Level 2: task list within category
-if(cCat&&!cTask){
-const cat=cMap[cCat];const tasks=tl.filter(t=>t.ct===cCat);
+// Task list within a category
+if(cCat){
+var cat=cMap[cCat];
+var tasks=tl.filter(function(t){return t.ct===cCat});
 return(<div className="vp">
-<button className="bk" onClick={()=>setCCat(null)}>← Bereiche</button>
+<button className="bk" onClick={function(){setCCat(null)}}>← Bereiche</button>
 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-<span style={{fontSize:24}}>{cat?.i}</span><div><div style={{fontSize:15,fontWeight:700,color:"#1E293B"}}>{cat?.t}</div>
-<div style={{fontSize:11,color:"#94A3B8"}}>{tasks.length} Aufgaben</div></div></div>
-{tasks.map(t=>{const mk1=t.id;const mk2=`${t.id}_${dky(sDay)}`;
-const m1=msgs[mk1]||[];const m2=msgs[mk2]||[];const allM=[...m1,...m2].sort((a,b)=>a.ts-b.ts);
-const rd1=rdM[mk1]||0;const rd2=rdM[mk2]||0;
-const unread=m1.slice(rd1).filter(x=>x.fr!==cu).length+m2.slice(rd2).filter(x=>x.fr!==cu).length;
-const last=allM[allM.length-1];
-return<button key={t.id} className="ctb" onClick={()=>setCTask(t.id)}>
+<span style={{fontSize:24}}>{cat?cat.i:""}</span>
+<div>
+<div style={{fontSize:15,fontWeight:700,color:"#1E293B"}}>{cat?cat.t:""}</div>
+<div style={{fontSize:11,color:"#94A3B8"}}>{tasks.length} Aufgaben</div>
+</div>
+</div>
+{tasks.map(function(t){
+var mList=msgs[t.id]||[];
+var rd=rdM[t.id]||0;
+var unread=mList.slice(rd).filter(function(x){return x.fr!==cu}).length;
+var last=mList.length>0?mList[mList.length-1]:null;
+return(<button key={t.id} className="ctb" onClick={function(){setCTask(t.id)}}>
 {unread>0&&<span className="udot"/>}
 <span className="ctt">{t.x}</span>
 {last&&<span className="ctl">{last.t}</span>}
 {unread>0&&<span className="ubg">{unread}</span>}
-</button>})}
-</div>)}
+</button>);
+})}
+</div>);
+}
 
-// Level 3: thread for specific task
-if(cTask){
-const t=tMap[cTask];const cat=cMap[t?.ct];
-const mk1=cTask;const mk2=`${cTask}_${dky(sDay)}`;
-const m1=(msgs[mk1]||[]).map(m=>({...m,ctx:"allgemein"}));
-const m2=(msgs[mk2]||[]).map(m=>({...m,ctx:dky(sDay)}));
-const allM=[...m1,...m2].sort((a,b)=>a.ts-b.ts);
-mkRd(mk1);mkRd(mk2);
-return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-<div className="th"><button className="th-bk" onClick={()=>setCTask(null)}>←</button>
-<div style={{flex:1}}><div className="th-t">{t?.x||"?"}</div><div className="th-s">{cat?.i} {cat?.t}</div></div></div>
-<div className="tmsgs">
-{allM.length===0&&<div style={{textAlign:"center",padding:40,color:"#94A3B8",fontSize:13}}>Noch keine Nachrichten</div>}
-{allM.map((m,i)=><div key={i} className={`mb ${m.fr===cu?"mine":"theirs"}`}>
-<div>{m.t}</div><div className="mbi">{P[m.fr]} · {fmtT(m.ts)}{m.ctx!=="allgemein"?" · "+m.ctx:""}</div>
-</div>)}
-</div>
-<div style={{padding:"6px 14px 2px",display:"flex",gap:"6px"}}>
-<button style={{flex:1,padding:"6px 0",borderRadius:8,border:"1.5px solid "+(dky(sDay)===dky(new Date())?"#2563EB":"#E5E7EB"),background:dky(sDay)===dky(new Date())?"#EFF6FF":"#fff",fontSize:11,fontWeight:600,color:dky(sDay)===dky(new Date())?"#2563EB":"#94A3B8"}}
-  onClick={()=>{}}>{sDay.toLocaleDateString("de-DE",{day:"numeric",month:"short"})}</button>
-<button style={{flex:1,padding:"6px 0",borderRadius:8,border:"1.5px solid #E5E7EB",background:"#fff",fontSize:11,fontWeight:600,color:"#94A3B8"}}
-  onClick={()=>{}}>Allgemein</button>
-</div>
-<MI onSend={text=>addM(mk2,text)} ph={`Nachricht für ${sDay.toLocaleDateString("de-DE",{day:"numeric",month:"short"})}...`}/>
-</div>)}
-return null;
+// Category list (home of chat)
+var catMsgs={};
+Object.keys(msgs).forEach(function(k){
+var m=msgs[k];
+if(!Array.isArray(m)||!m.length)return;
+var tid=k.split("_")[0];
+var task=tMap[tid];
+if(!task)return;
+if(!catMsgs[task.ct])catMsgs[task.ct]={cnt:0,unread:0};
+catMsgs[task.ct].cnt+=m.length;
+var rd=rdM[k]||0;
+m.slice(rd).forEach(function(x){if(x.fr!==cu)catMsgs[task.ct].unread++});
+});
+
+// Also collect all threads for "Alle Chats" section
+var allThreads=[];
+Object.keys(msgs).forEach(function(k){
+var m=msgs[k];
+if(!Array.isArray(m)||!m.length)return;
+var tid=k.split("_")[0];
+var task=tMap[tid];
+if(!task)return;
+var rd=rdM[k]||0;
+var unread=m.slice(rd).filter(function(x){return x.fr!==cu}).length;
+var last=m[m.length-1];
+allThreads.push({tid:tid,task:task,unread:unread,last:last,cat:cMap[task.ct]});
+});
+allThreads.sort(function(a,b){return(b.last?b.last.ts:0)-(a.last?a.last.ts:0)});
+
+return(<div className="vp">
+<div style={{fontSize:16,fontWeight:700,color:"#1E293B",marginBottom:4}}>💬 Nachrichten</div>
+<div style={{fontSize:11,color:"#94A3B8",marginBottom:14}}>Nachrichten zu Aufgaben</div>
+
+{allThreads.length>0&&<div style={{marginBottom:16}}>
+<div style={{fontSize:13,fontWeight:700,color:"#1E293B",marginBottom:6}}>Letzte Chats</div>
+{allThreads.slice(0,5).map(function(th){
+return(<button key={th.tid} className="ctb" onClick={function(){setCTask(th.tid)}}>
+{th.unread>0&&<span className="udot"/>}
+<span style={{fontSize:12,marginRight:4}}>{th.cat?th.cat.i:""}</span>
+<span className="ctt">{th.task.x}</span>
+{th.last&&<span className="ctl">{th.last.t}</span>}
+{th.unread>0&&<span className="ubg">{th.unread}</span>}
+</button>);
+})}
+</div>}
+
+<div style={{fontSize:13,fontWeight:700,color:"#1E293B",marginBottom:6}}>Nach Bereich</div>
+{CL.map(function(cat){
+var cm=catMsgs[cat.id];
+var tasks=tl.filter(function(t){return t.ct===cat.id});
+return(<button key={cat.id} className="ccb" onClick={function(){setCCat(cat.id)}}>
+<span className="cci">{cat.i}</span>
+<span className="cct">{cat.t}</span>
+<span className="ccn">{tasks.length}</span>
+{cm&&cm.unread>0&&<span className="ubg">{cm.unread}</span>}
+</button>);
+})}
+</div>);
 };
 // LIBRARY VIEW
 const libV=()=>{
