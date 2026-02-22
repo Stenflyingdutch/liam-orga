@@ -211,7 +211,7 @@ function mky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"
 function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"}
 function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
-function g7(){var r=[];var t=new Date();for(var i=-1;i<7;i++){var d=new Date(t);d.setDate(t.getDate()+i);r.push(d)}return r}
+function g7(offset){var r=[];var t=new Date();var base=offset*7;for(var i=0;i<7;i++){var d=new Date(t);d.setDate(t.getDate()+base+i);r.push(d)}return r}
 // msgKey: taskId + "_" + dateKey for day-specific comments
 function msgKey(tid,date){return tid+"_"+dky(date)}
 // Stable input component - prevents keyboard dismissal on mobile
@@ -242,10 +242,12 @@ var _ld=us(false),ld=_ld[0],setLd=_ld[1];
 var _mod=us(null),mod=_mod[0],setMod=_mod[1];
 var _srch=us(""),srch=_srch[0],setSrch=_srch[1];
 var _fd=us({}),fd=_fd[0],setFd=_fd[1];
-var _openCmt=us(null),openCmt=_openCmt[0],setOpenCmt=_openCmt[1]; // taskId with open comment
-var _chatThread=us(null),chatThread=_chatThread[0],setChatThread=_chatThread[1]; // msgKey for open thread
+var _openCmt=us(null),openCmt=_openCmt[0],setOpenCmt=_openCmt[1];
+var _chatThread=us(null),chatThread=_chatThread[0],setChatThread=_chatThread[1];
+var _wOff=us(0),wOff=_wOff[0],setWOff=_wOff[1]; // week offset for calendar scrolling
+var _dayHide=us({}),dayHide=_dayHide[0],setDayHide=_dayHide[1]; // {taskId_dateKey: true} tasks hidden on specific days
 var sk=ur(false);
-var days=um(g7,[]);
+var days=um(function(){return g7(wOff)},[wOff]);
 
 // Firebase sync
 ue(function(){
@@ -255,6 +257,7 @@ ue(function(){
   u.push(db.collection("v3").doc("dOw").onSnapshot(function(d){if(d.exists()){sk.current=true;setDOw(d.data());setTimeout(function(){sk.current=false},150)}}));
   u.push(db.collection("v3").doc("bOw").onSnapshot(function(d){if(d.exists()){sk.current=true;setBOw(d.data());setTimeout(function(){sk.current=false},150)}}));
   u.push(db.collection("v3").doc("msgs").onSnapshot(function(d){if(d.exists()){sk.current=true;setMsgs(d.data());setTimeout(function(){sk.current=false},150)}}));
+  u.push(db.collection("v3").doc("dH").onSnapshot(function(d){if(d.exists()){sk.current=true;setDayHide(d.data());setTimeout(function(){sk.current=false},150)}}));
   window.addEventListener("online",function(){setOnl(true)});
   window.addEventListener("offline",function(){setOnl(false)});
   return function(){u.forEach(function(x){x()})};
@@ -268,6 +271,7 @@ ue(function(){if(!ld||sk.current)return;var t=setTimeout(function(){sv3("tl",{l:
 ue(function(){if(!ld||sk.current)return;var t=setTimeout(function(){sv3("dOw",dOw)},300);return function(){clearTimeout(t)}},[dOw,ld]);
 ue(function(){if(!ld||sk.current)return;var t=setTimeout(function(){sv3("bOw",bOw)},300);return function(){clearTimeout(t)}},[bOw,ld]);
 ue(function(){if(!ld||sk.current)return;var t=setTimeout(function(){sv3("msgs",msgs)},300);return function(){clearTimeout(t)}},[msgs,ld]);
+ue(function(){if(!ld||sk.current)return;var t=setTimeout(function(){sv3("dH",dayHide)},300);return function(){clearTimeout(t)}},[dayHide,ld]);
 ue(function(){localStorage.setItem("lr3",JSON.stringify(rdM))},[rdM]);
 
 var gOw=uc(function(tid,date){return dOw[tid+"_"+dky(date)]||bOw[tid]||((tl.find(function(t){return t.id===tid})||{}).o)||"BOTH"},[dOw,bOw,tl]);
@@ -300,16 +304,29 @@ var cMap=um(function(){var m={};CL.forEach(function(c){m[c.id]=c});return m},[])
 var tMap=um(function(){var m={};tl.forEach(function(t){m[t.id]=t});return m},[tl]);
 
 var dayT=um(function(){
-  var dow=sDay.getDay();
+  var dow=sDay.getDay();var dk=dky(sDay);
   return tl.filter(function(t){
+    // Check if hidden on this day
+    if(dayHide[t.id+"_"+dk])return false;
     if(t.f==="daily")return true;if(t.f==="weekly"&&dow===1)return true;
     if(t.f==="monthly"&&sDay.getDate()===1)return true;
     if(["ongoing","asneeded","setup"].indexOf(t.f)>=0)return true;
     if(t.f==="bimonthly"&&sDay.getDate()===1&&sDay.getMonth()%2===0)return true;
     if(t.f==="quarterly"&&sDay.getDate()===1&&sDay.getMonth()%3===0)return true;
+    // Check if explicitly added to this day
+    if(dayHide[t.id+"_"+dk+"_add"])return true;
     return false;
   }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})});
-},[tl,sDay,cMap,gOw]);
+},[tl,sDay,cMap,gOw,dayHide]);
+
+// Tasks NOT on this day (for add modal)
+var hiddenT=um(function(){
+  var dk=dky(sDay);var shown={};dayT.forEach(function(t){shown[t.id]=true});
+  return tl.filter(function(t){return!shown[t.id]});
+},[tl,dayT,sDay]);
+
+function hideTaskDay(tid){var dk=dky(sDay);setDayHide(function(p){var n=Object.assign({},p);n[tid+"_"+dk]=true;return n})}
+function addTaskDay(tid){var dk=dky(sDay);setDayHide(function(p){var n=Object.assign({},p);n[tid+"_"+dk+"_add"]=true;delete n[tid+"_"+dk];return n})}
 
 var sts=um(function(){
   var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0},BOTH:{t:0,d:0}};
@@ -317,7 +334,13 @@ var sts=um(function(){
   return{tot:tot,dn:dn,pp:pp};
 },[dayT,isD,sDay]);
 
-var sm=um(function(){return{m:dayT.filter(function(t){return t.tm==="morning"&&t.f==="daily"}),a:dayT.filter(function(t){return t.tm==="afternoon"&&t.f==="daily"}),e:dayT.filter(function(t){return t.tm==="evening"&&t.f==="daily"}),d:dayT.filter(function(t){return t.f==="daily"&&!t.tm}),o:dayT.filter(function(t){return t.f!=="daily"})}},[dayT]);
+var sm=um(function(){return{
+  m:dayT.filter(function(t){return t.tm==="morning"&&t.f==="daily"}),
+  mid:dayT.filter(function(t){return t.tm==="midday"&&t.f==="daily"}),
+  a:dayT.filter(function(t){return t.tm==="afternoon"&&t.f==="daily"}),
+  e:dayT.filter(function(t){return t.tm==="evening"&&t.f==="daily"}),
+  d:dayT.filter(function(t){return t.f==="daily"&&!t.tm}),
+  o:dayT.filter(function(t){return t.f!=="daily"})}},[dayT]);
 
 // Unread count across ALL messages
 var uCnt=um(function(){
@@ -369,12 +392,25 @@ return React.createElement("div",{className:"pr"},
   React.createElement("span",{className:"pr-t"},p+"%"));}
 
 // DaySel
-function DaySel(){return React.createElement("div",{className:"days"},days.map(function(d){
-  var k=dky(d);var act=k===dky(sDay);var isTd=k===dky(new Date());
-  return React.createElement("button",{key:k,className:"dbtn"+(act?" act":"")+(isTd&&!act?" td":""),onClick:function(){setSDay(new Date(d));setOpenCmt(null)}},
-    React.createElement("span",{className:"dn"},DN[d.getDay()]),
-    React.createElement("span",{className:"dnum"},d.getDate()))
-}));}
+function DaySel(){
+  var monthLabel=days.length>0?days[0].toLocaleDateString("de-DE",{month:"short",year:"numeric"}):"";
+  return React.createElement("div",null,
+    React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}},
+      React.createElement("button",{style:{border:"none",background:"none",fontSize:18,color:"#2563EB",padding:"4px 8px",fontWeight:700},onClick:function(){setWOff(wOff-1)}},"‹"),
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
+        React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#1E293B"}},monthLabel),
+        wOff!==0?React.createElement("button",{style:{border:"none",background:"#EFF6FF",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,color:"#2563EB"},onClick:function(){setWOff(0);setSDay(new Date())}},"Heute"):null
+      ),
+      React.createElement("button",{style:{border:"none",background:"none",fontSize:18,color:"#2563EB",padding:"4px 8px",fontWeight:700},onClick:function(){setWOff(wOff+1)}},"›")
+    ),
+    React.createElement("div",{className:"days"},days.map(function(d){
+      var k=dky(d);var act=k===dky(sDay);var isTd=k===dky(new Date());
+      return React.createElement("button",{key:k,className:"dbtn"+(act?" act":"")+(isTd&&!act?" td":""),onClick:function(){setSDay(new Date(d));setOpenCmt(null)},style:{flex:1}},
+        React.createElement("span",{className:"dn"},DN[d.getDay()]),
+        React.createElement("span",{className:"dnum"},d.getDate()))
+    }))
+  );
+}
 
 // Task card with inline comments
 function TC(props){
@@ -403,7 +439,8 @@ function TC(props){
           ur2>0?React.createElement("span",{className:"ubg"},ur2):null,
           mList.length>0&&ur2===0?React.createElement("span",{style:{position:"absolute",top:-2,right:-2,fontSize:8,color:"#94A3B8",fontWeight:700}},mList.length):null
         ),
-        React.createElement("button",{className:"tc-ob",style:{borderColor:oc[1],color:oc[1],background:oc[0]},onClick:function(){setFd({tid:t.id,per:ow,scope:"day"});setMod({type:"assign"})}},P[ow]?P[ow].slice(0,1):"?")
+        React.createElement("button",{className:"tc-ob",style:{borderColor:oc[1],color:oc[1],background:oc[0]},onClick:function(){setFd({tid:t.id,per:ow,scope:"day"});setMod({type:"assign"})}},P[ow]?P[ow].slice(0,1):"?"),
+        React.createElement("button",{style:{width:24,height:24,borderRadius:6,border:"none",background:"#FEF2F2",color:"#DC2626",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"},onClick:function(){hideTaskDay(t.id)},title:"Von diesem Tag entfernen"},"✕")
       )
     ),
     // Inline comments
@@ -455,10 +492,16 @@ function todayView(){
       React.createElement("span",null,"🏠 Abend")
     ):null,
     React.createElement(TS,{title:"Morgens",icon:"🌅",tasks:sm.m}),
+    React.createElement(TS,{title:"Mittags",icon:"☀️",tasks:sm.mid}),
     React.createElement(TS,{title:"Nanny-Übergabe",icon:"🔄",tasks:sm.a}),
     React.createElement(TS,{title:"Abends",icon:"🌙",tasks:sm.e}),
     React.createElement(TS,{title:"Laufend",icon:"📋",tasks:sm.d}),
     sm.o.length>0?React.createElement(TS,{title:"Sonstige",icon:"📌",tasks:sm.o}):null,
+    // Add/remove tasks for this day
+    hiddenT.length>0?React.createElement("button",{style:{width:"100%",padding:"10px",borderRadius:10,border:"1.5px dashed #CBD5E1",background:"#fff",fontSize:13,fontWeight:600,color:"#64748B",marginBottom:14},
+      onClick:function(){setMod({type:"addDay"})}},
+      "＋ Aufgabe für diesen Tag hinzufügen"
+    ):null,
     React.createElement("div",{className:"mlc"},
       React.createElement("div",{className:"ml-t"},"⚖️ Balance"),
       React.createElement("div",{className:"ml-s"},
@@ -673,10 +716,39 @@ function editModal(){
             Object.keys(P).map(function(k){return React.createElement("option",{key:k,value:k},P[k])}))),
         React.createElement("div",{className:"fg",style:{flex:1}},React.createElement("label",{className:"fl"},"Tageszeit"),
           React.createElement("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},
-            React.createElement("option",{value:""},"Keine"),React.createElement("option",{value:"morning"},"Morgens"),React.createElement("option",{value:"afternoon"},"Nachmittags"),React.createElement("option",{value:"evening"},"Abends")))
+            React.createElement("option",{value:""},"Keine"),React.createElement("option",{value:"morning"},"Morgens"),React.createElement("option",{value:"midday"},"Mittags"),React.createElement("option",{value:"afternoon"},"Nachmittags"),React.createElement("option",{value:"evening"},"Abends")))
       ),
       React.createElement("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;savT(fd)}},isE?"Speichern":"Hinzufügen"),
       isE?React.createElement("button",{className:"fdel",onClick:function(){if(confirm("Löschen?"))delT(fd.id)}},"🗑 Löschen"):null
+    )
+  );
+}
+
+// ADD TASK TO DAY MODAL
+function addDayModal(){
+  if(!mod||mod.type!=="addDay")return null;
+  var grouped={};hiddenT.forEach(function(t){var cat=cMap[t.ct];if(!grouped[t.ct])grouped[t.ct]={cat:cat,tasks:[]};grouped[t.ct].tasks.push(t)});
+  return React.createElement("div",{className:"mo",onClick:function(e){if(e.target===e.currentTarget)setMod(null)}},
+    React.createElement("div",{className:"md"},
+      React.createElement("div",{className:"md-t"},
+        React.createElement("span",null,"＋ Aufgabe für "+sDay.toLocaleDateString("de-DE",{day:"numeric",month:"short"})),
+        React.createElement("button",{className:"md-x",onClick:function(){setMod(null)}},"✕")
+      ),
+      React.createElement("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:12}},hiddenT.length+" verfügbare Aufgaben"),
+      Object.keys(grouped).map(function(k){
+        var g=grouped[k];if(!g.cat)return null;
+        return React.createElement("div",{key:k},
+          React.createElement("div",{style:{fontSize:12,fontWeight:700,color:g.cat.c,padding:"8px 0 4px"}},g.cat.i+" "+g.cat.t),
+          g.tasks.map(function(t){
+            return React.createElement("button",{key:t.id,style:{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"10px 12px",borderRadius:8,border:"none",background:"#fff",marginBottom:3,boxShadow:"0 1px 1px rgba(0,0,0,.02)",fontFamily:"inherit",textAlign:"left"},
+              onClick:function(){addTaskDay(t.id);setMod(null)}},
+              React.createElement("span",{style:{fontSize:16,color:"#059669"}},"+"),
+              React.createElement("span",{style:{flex:1,fontSize:13,fontWeight:500,color:"#1E293B"}},t.x),
+              React.createElement("span",{className:"bg",style:{backgroundColor:FC[t.f]+"18",color:FC[t.f]}},FL[t.f])
+            )
+          })
+        )
+      })
     )
   );
 }
@@ -704,7 +776,7 @@ return React.createElement("div",{className:"app"},
     vw==="lib"?libView():null,
     vw==="chk"?chkView():null
   ),
-  assignModal(),editModal(),
+  assignModal(),editModal(),addDayModal(),
   React.createElement("div",{className:"nav"},navI.map(function(n){
     return React.createElement("button",{key:n.id,className:"nb"+(vw===n.id?" act":""),onClick:function(){setVw(n.id);if(n.id==="chat")setChatThread(null);setOpenCmt(null)}},
       React.createElement("span",{className:"ni"},n.i),
