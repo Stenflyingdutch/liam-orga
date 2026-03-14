@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firebase Test</title>
+<style>body{font-family:sans-serif;padding:20px;max-width:400px;margin:0 auto}button{padding:12px 24px;font-size:16px;margin:8px 0;width:100%;border-radius:8px;border:none;background:#2563EB;color:#fff;font-weight:700}#log{background:#f1f5f9;padding:12px;border-radius:8px;font-size:13px;white-space:pre-wrap;margin-top:12px;min-height:200px}</style>
+</head>
+<body>
+<h2>🔥 Firebase Test</h2>
+<button onclick="testWrite()">Test Schreiben</button>
+<button onclick="testRead()">Test Lesen</button>
+<div id="log">Warte auf Test...</div>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+var app = firebase.initializeApp({
+  apiKey:"AIzaSyBQmM0NrGOC9od2nhWOpFaS2u7XFB1fVb8",
+  authDomain:"maxi-orga.firebaseapp.com",
+  projectId:"maxi-orga",
+  storageBucket:"maxi-orga.firebasestorage.app",
+  messagingSenderId:"446112436224",
+  appId:"1:446112436224:web:797b842a4e9f2ec0a788e5"
+});
+var db = firebase.firestore();
+var log = document.getElementById("log");
+
+function addLog(msg) {
+  log.textContent += "\n" + new Date().toLocaleTimeString() + ": " + msg;
+}
+
+addLog("Firebase initialisiert");
+addLog("Projekt: " + app.options.projectId);
+
+function testWrite() {
+  addLog("Schreibe test...");
+  db.collection("v2").doc("test").set({
+    msg: "Hallo von Test!",
+    time: Date.now(),
+    user: "Sander"
+  }).then(function() {
+    addLog("✅ SCHREIBEN ERFOLGREICH!");
+  }).catch(function(err) {
+    addLog("❌ FEHLER: " + err.message);
+    addLog("Code: " + err.code);
+  });
+}
+
+function testRead() {
+  addLog("Lese v2/msgs...");
+  db.collection("v2").doc("msgs").get().then(function(doc) {
+    if (doc.exists()) {
+      addLog("✅ DOKUMENT GEFUNDEN:");
+      addLog(JSON.stringify(doc.data()).substring(0, 300));
+    } else {
+      addLog("⚠️ Dokument existiert, ist aber leer");
+    }
+  }).catch(function(err) {
+    addLog("❌ FEHLER: " + err.message);
+  });
+  
+  addLog("Lese v2/bOw...");
+  db.collection("v2").doc("bOw").get().then(function(doc) {
+    if (doc.exists()) {
+      var data = doc.data();
+      var keys = Object.keys(data);
+      addLog("✅ bOw hat " + keys.length + " Einträge");
+    } else {
+      addLog("⚠️ bOw nicht gefunden");
+    }
+  }).catch(function(err) {
+    addLog("❌ FEHLER: " + err.message);
+  });
+}
+</script>
+</body>
+</html>
