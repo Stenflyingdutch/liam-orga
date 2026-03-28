@@ -241,7 +241,7 @@ var _msgs=us({}),msgs=_msgs[0],setMsgs=_msgs[1];
 var _rdM=us(function(){try{return JSON.parse(localStorage.getItem("lr2")||"{}")}catch(e){return{}}}),rdM=_rdM[0],setRdM=_rdM[1];
 var _sDay=us(new Date()),sDay=_sDay[0],setSDay=_sDay[1];
 var _wOff=us(0),wOff=_wOff[0],setWOff=_wOff[1];
-var _fp=us("SANDER"),fp=_fp[0],setFp=_fp[1];
+var _fp=us(function(){return localStorage.getItem("lf")||"ALL"}),fp=_fp[0],setFp=_fp[1];
 var _cu=us(function(){return localStorage.getItem("lu2")||null}),cu=_cu[0],setCu=_cu[1];
 var _shOb=us(function(){return!localStorage.getItem("lu2")}),shOb=_shOb[0],setShOb=_shOb[1];
 var _tOD=us(tod),tOD=_tOD[0];
@@ -283,6 +283,7 @@ ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){sa
 ue(function(){if(!ld||fromServer.current>0||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
 ue(function(){localStorage.setItem("lr2",JSON.stringify(rdM))},[rdM]);
+ue(function(){localStorage.setItem("lf",fp)},[fp]);
 var gOw=uc(function(tid,date){
   // 1. Day-specific override
   var dayOv=dOw[tid+"_"+dky(date)];if(dayOv)return dayOv;
@@ -483,11 +484,13 @@ function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(
 function todayView(){
   var dk=dky(sDay);var isT=dk===dky(new Date());
   var greet=tOD==="morning"?"Guten Morgen":tOD==="midday"?"Mahlzeit":tOD==="afternoon"?"Nachmittag":"Guten Abend";
+  // Filter tasks
+  function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp||t.owner==="BOTH"})}
+  function setFilter(v){setFp(v)}
   return ce("div",{className:"vp"},
     ce(Cal),
     // New messages banner
     todayNewMsgs.length>0?ce("div",{className:"banner",onClick:function(){
-      // expand first task with unread
       setExp(todayNewMsgs[0].task.id);mkRd(mkKey(todayNewMsgs[0].task.id,sDay))}},
       ce("div",{className:"banner-dot"}),
       ce("div",{className:"banner-text"},todayNewMsgs.length===1?
@@ -495,6 +498,13 @@ function todayView(){
         todayNewMsgs.reduce(function(s,x){return s+x.count},0)+" neue Nachrichten bei "+todayNewMsgs.length+" Aufgaben"),
       ce("div",{className:"banner-arrow"},"›")
     ):null,
+    // Filter buttons
+    ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
+      [["ALL","Alle",null],["SANDER","Sander","#1D4ED8"],["NATA","Nata","#BE185D"]].map(function(f){
+        var act=fp===f[0];
+        return ce("button",{key:f[0],style:{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid "+(act?(f[2]||"#1E293B"):"#E5E7EB"),background:act?(f[2]?OC[f[0]]?OC[f[0]][0]:"#1E293B":"#1E293B"):"#fff",color:act?(f[2]?"#fff":"#fff"):(f[2]||"#94A3B8"),fontSize:14,fontWeight:700,fontFamily:"inherit"},
+          onClick:function(){setFilter(f[0])}},f[1])
+      })),
     ce("div",{className:"gc"},
       isT?ce("div",{className:"gc-t"},greet+", "+P[cu]+" 👋"):ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B"}},sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("div",{className:"gc-s"},sts.dn+"/"+sts.tot+" erledigt"),ce(PB,{d:sts.dn,t:sts.tot})),
@@ -504,12 +514,12 @@ function todayView(){
       onClick:function(){setFd({x:"",detail:"",f:"daily",o:cu,ct:"daily",tm:"",isQuick:true});setMod({type:"quickAdd"})}},
       "＋ Neue Aufgabe hinzufügen"
     ),
-    ce(TS,{title:"Morgens",icon:"🌅",tasks:sm.m}),
-    sm.mid.length>0?ce(TS,{title:"Mittags",icon:"☀️",tasks:sm.mid}):null,
-    ce(TS,{title:"Nanny-Übergabe",icon:"🔄",tasks:sm.a}),
-    ce(TS,{title:"Abends",icon:"🌙",tasks:sm.e}),
-    ce(TS,{title:"Laufend",icon:"📋",tasks:sm.d}),
-    sm.o.length>0?ce(TS,{title:"Sonstige",icon:"📌",tasks:sm.o}):null,
+    ce(TS,{title:"Morgens",icon:"🌅",tasks:filt(sm.m)}),
+    filt(sm.mid).length>0?ce(TS,{title:"Mittags",icon:"☀️",tasks:filt(sm.mid)}):null,
+    ce(TS,{title:"Nanny-Übergabe",icon:"🔄",tasks:filt(sm.a)}),
+    ce(TS,{title:"Abends",icon:"🌙",tasks:filt(sm.e)}),
+    ce(TS,{title:"Laufend",icon:"📋",tasks:filt(sm.d)}),
+    filt(sm.o).length>0?ce(TS,{title:"Sonstige",icon:"📌",tasks:filt(sm.o)}):null,
     ce("div",{className:"mlc"},ce("div",{className:"ml-t"},"⚖️ Balance"),
       ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["BOTH","#4338CA"],["NATA","#BE185D"]].map(function(x){var s=sts.pp[x[0]]||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
 // PERSON VIEW
@@ -722,10 +732,10 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
             ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends")))),
       fd.f==="once"?ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})):null,
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
-var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"person",i:"👤",l:"Meine"},{id:"chat",i:"💬",l:"Chat"},{id:"lib",i:"📚",l:"Library"},{id:"chk",i:"⚖️",l:"Check-in"}];
+var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"chat",i:"💬",l:"Chat"},{id:"lib",i:"📚",l:"Library"},{id:"chk",i:"⚖️",l:"Check-in"}];
 return ce("div",{className:"app"},
   ce("div",{className:"hdr"},ce("div",{className:"hdr-l"},ce("span",{style:{fontSize:22}},"👶"),ce("div",null,ce("div",{className:"hdr-t"},"Liam Orga"),ce("div",{className:"hdr-d"},new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})))),ce("div",{className:"hdr-r"},ce("div",{className:"sdot "+(onl?"on":"off")}),ce("div",{className:"hdr-s"},sts.dn+"/"+sts.tot+" ✓"))),
-  ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="person"?personView():null,vw==="chat"?chatView():null,vw==="lib"?libView():null,vw==="chk"?chkView():null),
+  ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="chat"?chatView():null,vw==="lib"?libView():null,vw==="chk"?chkView():null),
   assignMod(),editMod(),quickAddMod(),
   ce("div",{className:"nav"},navI.map(function(n){return ce("button",{key:n.id,className:"nb"+(vw===n.id?" act":""),onClick:function(){setVw(n.id);if(n.id==="chat")setChatThread(null);setExp(null)}},ce("span",{className:"ni"},n.i),ce("span",{className:"nl"},n.l),n.id==="chat"&&uCnt>0?ce("span",{className:"nbg"},uCnt):null)})));
 }
