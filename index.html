@@ -223,6 +223,7 @@ function normTask(t){
     nt.dayMode=nt.dayMode||(nt.f==="daily"?"workdays":"alldays");
     if(nt.ct==="kita")nt.dayMode="workdays";
     nt.rotate=nt.rotate||"none"; // none|day|week|month
+    nt.dueDate="";
   }else{
     nt.mlTerm=nt.mlTerm||"monthly"; // monthly|quarterly|yearly
     nt.mlSwitchDate=nt.mlSwitchDate||"";
@@ -252,7 +253,7 @@ function mfr(m){return m.fr||m.from||"?"}
 function mtx(m){return m.t||m.text||""}
 function mts(m){return m.ts||m.time||0}
 function toEditData(t,ow){
-  return {id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||"",kind:t.kind||inferType(t),dayMode:t.dayMode||"workdays",rotate:t.rotate||"none",mlTerm:t.mlTerm||"monthly",mlSwitchDate:t.mlSwitchDate||"",reminders:t.reminders||[]}
+  return {id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||"",kind:t.kind||inferType(t),dayMode:t.dayMode||"workdays",rotate:t.rotate||"none",mlTerm:t.mlTerm||"monthly",mlSwitchDate:t.mlSwitchDate||"",reminders:t.reminders||[],weekPlan:null}
 }
 // Stable input - no keyboard dismissal
 function MI(props){
@@ -433,10 +434,22 @@ var uCnt=um(function(){var c=0;Object.keys(msgs).forEach(function(k){var m=msgs[
 var todayNewMsgs=um(function(){var r=[];dayT.forEach(function(t){var u=unreadFor(t.id,sDay);if(u>0)r.push({task:t,count:u})});return r},[dayT,msgs,rdM,sDay,cu]);
 var savT=function(data){
   data=normTask(data);
-  if(data.f==="daily")data.dueDate="";
+  if(data.kind==="routine"||data.kind==="mental"||data.f==="daily")data.dueDate="";
   if(data.f==="once"&&!data.onDate)data.onDate=dky(sDay);
-  if(data.id){setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,data):t})});if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n})}
-  else{var nn=Object.assign({},data,{id:nuid()});setTl(function(p){return p.concat([nn])});setBOw(function(p){var n=Object.assign({},p);n[nn.id]=nn.o;return n})}
+  var persistData=Object.assign({},data);
+  delete persistData.weekPlan;
+  delete persistData.newReminder;
+  var taskId=data.id;
+  if(data.id){setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,persistData):t})});if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n})}
+  else{var nn=Object.assign({},persistData,{id:nuid()});taskId=nn.id;setTl(function(p){return p.concat([nn])});setBOw(function(p){var n=Object.assign({},p);n[nn.id]=nn.o;return n})}
+  if(data.kind==="routine"){
+    setWPlan(function(prev){
+      var n=Object.assign({},prev);
+      var wp=data.weekPlan&&typeof data.weekPlan==="object"?data.weekPlan:null;
+      if(wp&&Object.keys(wp).length)n[taskId]=wp;else delete n[taskId];
+      return n;
+    });
+  }
   setMod(null);};
 var delT=function(id){
   setTl(function(p){return p.filter(function(t){return t.id!==id})});
@@ -453,7 +466,7 @@ function quickAdd(data){
   if(!data.x||!data.x.trim())return;
   var newId=nuid();
   var freq=data.f||"daily";
-  var newTask=normTask({id:newId,x:data.x.trim(),f:freq,o:data.o||cu,ct:data.ct||"daily",tm:data.tm||"",dueDate:freq==="daily"?"":(data.dueDate||""),kind:data.kind||"routine",dayMode:data.dayMode||"workdays",rotate:data.rotate||"none",mlTerm:data.mlTerm||"monthly",mlSwitchDate:data.mlSwitchDate||"",reminders:data.reminders||[]});
+  var newTask=normTask({id:newId,x:data.x.trim(),f:freq,o:data.o||cu,ct:data.ct||"daily",tm:data.tm||"",dueDate:"",kind:data.kind||"routine",dayMode:data.dayMode||"workdays",rotate:data.rotate||"none",mlTerm:data.mlTerm||"monthly",mlSwitchDate:data.mlSwitchDate||"",reminders:data.reminders||[]});
   if(data.f==="once")newTask.onDate=dky(sDay);
   setTl(function(p){return p.concat([newTask])});
   setBOw(function(p){var n=Object.assign({},p);n[newId]=data.o||cu;return n});
@@ -525,7 +538,7 @@ function TC(pr){
   var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
   var isExp=exp===t.id;
   var isTodayMode=pr.mode==="today";
-  function openEdit(){setFd(toEditData(t,ow));setMod({type:"edit"})}
+  function openEdit(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}
   var expNode=null;
   if(isExp&&!t.isReminder&&isTodayMode){
     if(t.kind==="routine"){
@@ -567,7 +580,7 @@ function TC(pr){
         ce("div",{className:"tc-sub"},
           ce("div",{className:"tc-dot",style:{backgroundColor:oc[1]}}),
           ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
-          t.dueDate?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date(t.dueDate+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
+          t.dueDate&&!t.isReminder?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date(t.dueDate+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
           mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
     expNode,
@@ -650,7 +663,7 @@ function extraView(){
         ct.map(function(t){
           var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
           return ce("div",{key:t.id,className:"li"},
-            ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(toEditData(t,ow));setMod({type:"edit"})}},
+            ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
               ce("div",{className:"li-t"},t.x),
               ce("div",{className:"li-m"},
                 ce("span",{className:"bg",style:{backgroundColor:oc[0],color:oc[1]}},P[ow]||P.NONE),
@@ -661,7 +674,7 @@ function extraView(){
               )
             ),
             ce("div",{style:{display:"flex",gap:4}},
-              ce("button",{className:"lib",onClick:function(){setFd(toEditData(t,ow));setMod({type:"edit"})}},"✏️"),
+              ce("button",{className:"lib",onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},"✏️"),
               ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"))
           );
         })
@@ -781,7 +794,7 @@ function routineView(){
           cat.i+" "+cat.t,
           ce("span",{style:{fontSize:11,color:"#94A3B8",fontWeight:600,marginLeft:"auto"}},"("+ct.length+")")),
         ct.map(function(t){var ow=gOw(t.id,sDay);return ce("div",{key:t.id,className:"li"},
-          ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(toEditData(t,ow));setMod({type:"edit"})}},
+          ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
             ce("div",{className:"li-t"},t.x),
             ce("div",{className:"li-m"},
               ce("span",{className:"bg",style:{backgroundColor:FC[t.f]+"18",color:FC[t.f]}},FL[t.f]),
@@ -792,7 +805,7 @@ function routineView(){
             )
           ),
           ce("div",{style:{display:"flex",gap:4}},
-            ce("button",{className:"lib",onClick:function(){setFd(toEditData(t,ow));setMod({type:"edit"})}},"✏️"),
+            ce("button",{className:"lib",onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},"✏️"),
             ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑")))
         })
       )}));}
@@ -896,6 +909,26 @@ function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var i
             ce("option",{value:"none"},"Fix"),
             ce("option",{value:"day"},"Täglich abwechselnd"),
             ce("option",{value:"week"},"Wöchentlich abwechselnd")))):null,
+      fd.kind==="routine"?ce("div",{className:"fg"},
+        ce("label",{className:"fl"},"Wochenzuordnung (pro Tag)"),
+        ce("div",{style:{display:"grid",gridTemplateColumns:"repeat("+(fd.dayMode==="workdays"?5:7)+",1fr)",gap:6}},
+          (fd.dayMode==="workdays"?[1,2,3,4,5]:[1,2,3,4,5,6,0]).map(function(d){
+            var DN3=["So","Mo","Di","Mi","Do","Fr","Sa"];
+            var cur=fd.weekPlan&&typeof fd.weekPlan==="object"?fd.weekPlan[String(d)]:null;
+            var nxt=cur==="SANDER"?"NATA":"SANDER";
+            var col=cur?OC[cur]:["#F8FAFC","#94A3B8"];
+            return ce("button",{key:d,style:{padding:"8px 4px",borderRadius:8,border:"1.5px solid "+col[1],background:col[0],fontSize:11,fontWeight:700,color:col[1]},
+              onClick:function(){
+                setFd(function(prev){
+                  var wp=prev.weekPlan&&typeof prev.weekPlan==="object"?Object.assign({},prev.weekPlan):{};
+                  wp[String(d)]=nxt;
+                  return Object.assign({},prev,{weekPlan:wp});
+                });
+              }},
+              ce("div",null,DN3[d]),
+              ce("div",{style:{fontSize:10,marginTop:2}},cur?P[cur].slice(0,1):"–"));
+          })),
+        ce("div",{style:{fontSize:11,color:"#94A3B8",marginTop:6}},"Tippen wechselt zwischen Sander und Nata.")):null,
       fd.kind==="mental"?ce("div",{className:"fr"},
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuordnung"),
           ce("select",{className:"fse",value:fd.mlTerm||"monthly",onChange:function(e){setFd(function(p){return Object.assign({},p,{mlTerm:e.target.value})})}},
@@ -910,9 +943,6 @@ function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var i
           if(!fd.newReminder)return;setFd(function(p){var arr=Array.isArray(p.reminders)?p.reminders.slice():[];if(arr.indexOf(p.newReminder)<0)arr.push(p.newReminder);arr.sort();return Object.assign({},p,{reminders:arr,newReminder:""})});
         }},"＋")):null,
       fd.kind==="mental"&&fd.reminders&&fd.reminders.length?ce("div",{style:{fontSize:12,color:"#64748B",marginBottom:10}},"Erinnerungen: "+fd.reminders.join(", ")):null,
-      fd.kind==="routine"&&fd.f!=="daily"?ce("div",{className:"fg"},
-        ce("label",{className:"fl"},"Fälligkeitsdatum"),
-        ce("input",{className:"fi",type:"date",value:fd.dueDate||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{dueDate:e.target.value})})}})):null,
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;savT(fd)}},isE?"Speichern":"Hinzufügen"),
       isE?ce("button",{className:"fdel",onClick:function(){if(confirm("Löschen?"))delT(fd.id)}},"🗑 Löschen"):null));}
 // RENDER
@@ -937,9 +967,6 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),
           ce("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},
             ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends")))),
-      fd.f!=="daily"?ce("div",{className:"fg"},
-        ce("label",{className:"fl"},"Fälligkeitsdatum"),
-        ce("input",{className:"fi",type:"date",value:fd.dueDate||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{dueDate:e.target.value})})}})):null,
       fd.f==="once"?ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})):null,
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
 var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental Load"},{id:"chat",i:"💬",l:"Chat"},{id:"chk",i:"⚖️",l:"Check-in"}];
