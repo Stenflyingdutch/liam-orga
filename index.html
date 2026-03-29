@@ -363,7 +363,16 @@ var sOwn=uc(function(tid,per,scope,date){
   else if(scope==="month"){var y=date.getFullYear(),m=date.getMonth();for(var i=1;i<=new Date(y,m+1,0).getDate();i++){(function(ii){var nd=new Date(y,m,ii);setDOw(function(p){var n=Object.assign({},p);n[tid+"_"+dky(nd)]=per;return n})})(i)}}
   else{setBOw(function(p){var n=Object.assign({},p);n[tid]=per;return n})}
 },[]);
-function ckKey(tid,freq,date){if(freq==="daily"||freq==="once")return tid+"_"+dky(date);if(freq==="weekly")return tid+"_"+wky(date);if(freq==="monthly")return tid+"_"+mky(date);return tid+"_cur"}
+function ckKey(tid,freq,date){
+  if(freq==="daily")return tid+"_"+dky(date);
+  if(freq==="once"){
+    if(String(tid).indexOf("__rem__")>=0)return tid; // keep reminder completion across week days
+    return tid+"_"+dky(date);
+  }
+  if(freq==="weekly")return tid+"_"+wky(date);
+  if(freq==="monthly")return tid+"_"+mky(date);
+  return tid+"_cur";
+}
 var isD=uc(function(tid,f,d){return!!ts[ckKey(tid,f,d||sDay)]},[ts,sDay]);
 var tog=uc(function(tid,f,d){
   var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
