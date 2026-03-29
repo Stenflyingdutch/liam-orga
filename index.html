@@ -587,12 +587,12 @@ function TC(pr){
   var t=pr.t;var checkDate=chkDateForTask(t,sDay);var d=isD(t.id,t.f,checkDate);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
   var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder);
   var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
-  var isExp=exp===t.id;
+  var isExp=pr.mode==="today"?false:exp===t.id;
   var isTodayMode=pr.mode==="today";
   function openEdit(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}
   function onCardClick(){
-    if(!isTodayMode){openEdit();return}
-    setExp(isExp?null:t.id);if(!isExp&&ur2>0)mkRd(mk)
+    if(ur2>0)mkRd(mk);
+    openEdit();
   }
   var expNode=null;
   if(isExp&&!t.isReminder&&isTodayMode){
@@ -642,15 +642,14 @@ function TC(pr){
     ):null);
 }
 // TIME SECTION - collapsible
-function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(t){return isD(t.id,t.f,chkDateForTask(t,sDay))}).length;var ad=dc===pr.tasks.length;
+function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(t){return isD(t.id,t.f,chkDateForTask(t,sDay))}).length;
   var skey=pr.title;var isCol=!!secCol[skey];
   function togSec(){setSecCol(function(p){var n=Object.assign({},p);n[skey]=!n[skey];return n})}
   return ce("div",{className:"tsec"},
     ce("button",{className:"tsec-h",onClick:togSec,style:{border:"none",background:"none",width:"100%",cursor:"pointer",fontFamily:"inherit",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 2px"}},
       ce("div",{className:"tsec-t"},ce("span",null,pr.icon),pr.title,ce("span",{style:{fontSize:13,color:"#94A3B8",marginLeft:4}},isCol?"›":"▾")),
-      ce("span",{className:"tsec-c",style:{color:ad?"#059669":"#94A3B8"}},dc+"/"+pr.tasks.length)),
+      ce("span",{className:"tsec-c",style:{color:dc===pr.tasks.length?"#059669":"#94A3B8"}},dc+"/"+pr.tasks.length)),
     !isCol?ce("div",null,
-      ad&&pr.tasks.length>0?ce("div",{className:"cel"},ce("div",{className:"cel-e"},"✨"),ce("div",{className:"cel-t"},"Erledigt!")):null,
       pr.tasks.map(function(t){return ce(TC,{key:t.id,t:t,showCat:true,mode:pr.mode})})):null);}
 // TODAY VIEW
 function todayView(){
@@ -724,7 +723,6 @@ function extraView(){
               )
             ),
             ce("div",{style:{display:"flex",gap:4}},
-              ce("button",{className:"lib",onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},"✏️"),
               ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"))
           );
         })
@@ -867,7 +865,6 @@ function routineView(){
             )
           ),
           ce("div",{style:{display:"flex",gap:4}},
-            ce("button",{className:"lib",onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},"✏️"),
             ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑")))
         })
       );
