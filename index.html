@@ -215,6 +215,8 @@ var DN=["So","Mo","Di","Mi","Do","Fr","Sa"];
 function dky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function pDate(s){if(!s)return null;var p=s.split("-");if(p.length!==3)return null;var y=Number(p[0]),m=Number(p[1])-1,d=Number(p[2]);if(!y||m<0||d<1)return null;return new Date(y,m,d)}
 function diffD(a,b){var ad=new Date(a.getFullYear(),a.getMonth(),a.getDate());var bd=new Date(b.getFullYear(),b.getMonth(),b.getDate());return Math.round((ad-bd)/864e5)}
+function addMonthsKeepDay(d,months){var n=new Date(d.getFullYear(),d.getMonth(),1);n.setMonth(n.getMonth()+months);var maxDay=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();n.setDate(Math.min(d.getDate(),maxDay));return n}
+function nextDueDateByFreq(dueDate,freq){var d=pDate(dueDate);if(!d)return"";if(freq==="weekly")d.setDate(d.getDate()+7);else if(freq==="monthly")d=addMonthsKeepDay(d,1);else if(freq==="quarterly")d=addMonthsKeepDay(d,3);else return"";return dky(d)}
 function wky(d){var j=new Date(d.getFullYear(),0,1);return d.getFullYear()+"-W"+Math.ceil(((d-j)/864e5+j.getDay()+1)/7)}
 function mky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
 function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"}
@@ -315,7 +317,17 @@ var sOwn=uc(function(tid,per,scope,date){
 },[]);
 function ckKey(tid,freq,date){if(freq==="daily"||freq==="once")return tid+"_"+dky(date);if(freq==="weekly")return tid+"_"+wky(date);if(freq==="monthly")return tid+"_"+mky(date);return tid+"_cur"}
 var isD=uc(function(tid,f,d){return!!ts[ckKey(tid,f,d||sDay)]},[ts,sDay]);
-var tog=uc(function(tid,f,d){var k=ckKey(tid,f,d||sDay);setTs(function(p){var n=Object.assign({},p);n[k]=!p[k];db.collection("v2").doc("ts").set(n);return n})},[sDay]);
+var tog=uc(function(tid,f,d){
+  var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
+  setTs(function(p){
+    var n=Object.assign({},p);var nextDone=!p[k];n[k]=nextDone;db.collection("v2").doc("ts").set(n);
+    if(nextDone&&t&&t.dueDate&&["weekly","monthly","quarterly"].indexOf(t.f)>=0){
+      var nd=nextDueDateByFreq(t.dueDate,t.f);
+      if(nd){setTl(function(list){return list.map(function(it){return it.id===tid?Object.assign({},it,{dueDate:nd}):it})})}
+    }
+    return n
+  })
+},[sDay,tMap]);
 var addM=uc(function(key,text){if(!text.trim())return;
   var newMsg={t:text.trim(),fr:cu,ts:Date.now(),text:text.trim(),from:cu,time:Date.now()};
   setMsgs(function(p){
