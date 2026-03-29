@@ -252,7 +252,7 @@ function ew(d){var x=sw(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);ret
 function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"}
 function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
-function g7(off){var r=[];var t=new Date();for(var i=0;i<7;i++){var d=new Date(t);d.setDate(t.getDate()+off*7+i);r.push(d)}return r}
+function g7(off){var r=[];var b=sw(new Date());b.setDate(b.getDate()+off*7);for(var i=0;i<7;i++){var d=new Date(b);d.setDate(b.getDate()+i);r.push(d)}return r}
 function mkKey(tid,date){return tid}
 function mkReminderId(tid,ds){return tid+"__rem__"+ds}
 function mfr(m){return m.fr||m.from||"?"}
@@ -278,6 +278,7 @@ var _tl=us(DT.map(normTask)),tl=_tl[0],setTl=_tl[1];
 var _dOw=us({}),dOw=_dOw[0],setDOw=_dOw[1];
 var _bOw=us({}),bOw=_bOw[0],setBOw=_bOw[1];
 var _msgs=us({}),msgs=_msgs[0],setMsgs=_msgs[1];
+var _rDone=us({}),rDone=_rDone[0],setRDone=_rDone[1];
 var _rdM=us(function(){try{return JSON.parse(localStorage.getItem("lr2")||"{}")}catch(e){return{}}}),rdM=_rdM[0],setRdM=_rdM[1];
 var _sDay=us(new Date()),sDay=_sDay[0],setSDay=_sDay[1];
 var _wOff=us(0),wOff=_wOff[0],setWOff=_wOff[1];
@@ -307,6 +308,7 @@ ue(function(){
   u.push(db.collection("v2").doc("dOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setDOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("bOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setBOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("msgs").onSnapshot(function(d){if(d.exists){fromServer.current++;setMsgs(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(db.collection("v2").doc("rDone").onSnapshot(function(d){if(d.exists){fromServer.current++;setRDone(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("tOrd").onSnapshot(function(d){if(d.exists&&d.data().o){fromServer.current++;setTOrd(d.data().o);setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("wPlan").onSnapshot(function(d){if(d.exists){fromServer.current++;setWPlan(d.data());setTimeout(function(){fromServer.current--},500)}}));
   window.addEventListener("online",function(){setOnl(true)});window.addEventListener("offline",function(){setOnl(false)});
@@ -320,6 +322,7 @@ ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){sa
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("dOw",dOw)},500);return function(){clearTimeout(t)}},[dOw,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("bOw",bOw)},500);return function(){clearTimeout(t)}},[bOw,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("msgs",msgs)},500);return function(){clearTimeout(t)}},[msgs,ld]);
+ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("rDone",rDone)},500);return function(){clearTimeout(t)}},[rDone,ld]);
 ue(function(){if(!ld||fromServer.current>0||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
 ue(function(){localStorage.setItem("lr2",JSON.stringify(rdM))},[rdM]);
@@ -373,9 +376,23 @@ function ckKey(tid,freq,date){
   if(freq==="monthly")return tid+"_"+mky(date);
   return tid+"_cur";
 }
-var isD=uc(function(tid,f,d){return!!ts[ckKey(tid,f,d||sDay)]},[ts,sDay]);
+var isD=uc(function(tid,f,d){
+  var date=d||sDay;
+  if(f==="once"&&String(tid).indexOf("__rem__")>=0)return rDone[tid]===dky(date);
+  return !!ts[ckKey(tid,f,date)];
+},[ts,sDay,rDone]);
 var tog=uc(function(tid,f,d){
   var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
+  if(String(tid).indexOf("__rem__")>=0){
+    var dayKey=dky(date);
+    setRDone(function(p){
+      var n=Object.assign({},p);
+      if(n[tid]===dayKey)delete n[tid];
+      else n[tid]=dayKey;
+      return n;
+    });
+    return;
+  }
   setTs(function(p){
     var n=Object.assign({},p);var nextDone=!p[k];n[k]=nextDone;db.collection("v2").doc("ts").set(n);
     if(nextDone&&t&&t.dueDate&&["weekly","monthly","quarterly"].indexOf(t.f)>=0){
@@ -442,13 +459,19 @@ var reminderTodayTasks=um(function(){
     if(t.kind!=="mental"||!Array.isArray(t.reminders))return;
     t.reminders.forEach(function(r){
       var rd=pDate(r);if(!rd)return;
-      if(sDay<sw(rd)||sDay>ew(rd))return;
+      if(sDay<rd)return;
       var ro=gOw(t.id,sDay);if(ro==="NONE")return;
-      list.push({id:mkReminderId(t.id,r),x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true});
+      var rid=mkReminderId(t.id,r);
+      var doneDate=rDone[rid];
+      if(doneDate){
+        var doneDay=pDate(doneDate);
+        if(doneDay&&diffD(sDay,doneDay)>=1)return;
+      }
+      list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true});
     });
   });
   return list;
-},[tl,sDay,cMap,gOw]);
+},[tl,sDay,cMap,gOw,rDone]);
 var mentalTodayTasks=um(function(){
   return tl.filter(function(t){
     if(t.kind!=="mental")return false;
