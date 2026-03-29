@@ -356,10 +356,17 @@ ue(function(){
   });
   if(Object.keys(changedIds).length){
     changed=true;
-    setTl(function(list){return list.map(function(t){
-      if(!changedIds[t.id])return t;
-      return Object.assign({},t,{reminderDate:"",reminders:[]});
-    })});
+    var deletedIds={};
+    tl.forEach(function(t){
+      if(!changedIds[t.id])return;
+      if(!ts[t.id+"_cur"])deletedIds[t.id]=true;
+    });
+    setTl(function(list){return list.reduce(function(acc,t){
+      if(!changedIds[t.id]){acc.push(t);return acc}
+      if(deletedIds[t.id])return acc;
+      acc.push(Object.assign({},t,{reminderDate:"",reminders:[]}));
+      return acc;
+    },[])});
     setRDone(function(prev){
       var n=Object.assign({},prev);
       Object.keys(prev).forEach(function(k){
@@ -368,13 +375,50 @@ ue(function(){
       });
       return n;
     });
+    if(Object.keys(deletedIds).length){
+      setTs(function(prev){
+        var n=Object.assign({},prev);
+        Object.keys(n).forEach(function(k){
+          var tid=k.split("_")[0];
+          if(deletedIds[tid])delete n[k];
+        });
+        return n;
+      });
+      setBOw(function(prev){
+        var n=Object.assign({},prev);
+        Object.keys(deletedIds).forEach(function(id){delete n[id]});
+        return n;
+      });
+      setDOw(function(prev){
+        var n=Object.assign({},prev);
+        Object.keys(prev).forEach(function(k){
+          var tid=k.split("_")[0];
+          if(deletedIds[tid])delete n[k];
+        });
+        return n;
+      });
+      setWPlan(function(prev){
+        var n=Object.assign({},prev);
+        Object.keys(deletedIds).forEach(function(id){delete n[id]});
+        return n;
+      });
+      setMsgs(function(prev){
+        var n={};
+        Object.keys(prev).forEach(function(k){
+          var tid=k.split("_")[0];
+          if(!deletedIds[tid])n[k]=prev[k];
+        });
+        return n;
+      });
+      setTOrd(function(prev){return prev.filter(function(id){return !deletedIds[id]})});
+    }
   }
   var keysA=Object.keys(nextState),keysB=Object.keys(mlTermState);
   if(!changed&&keysA.length===keysB.length){
     for(var i=0;i<keysA.length;i++){if(nextState[keysA[i]]!==mlTermState[keysA[i]]){changed=true;break}}
   }else if(keysA.length!==keysB.length){changed=true;}
   if(changed)setMlTermState(nextState);
-},[tl,mlTermState]);
+},[tl,mlTermState,ts]);
 ue(function(){localStorage.setItem("lr2",JSON.stringify(rdM))},[rdM]);
 ue(function(){localStorage.setItem("lf",fp)},[fp]);
 var gOw=uc(function(tid,date){
