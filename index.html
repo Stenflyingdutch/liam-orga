@@ -623,9 +623,8 @@ var delT=function(id){
 function quickAdd(data){
   if(!data.x||!data.x.trim())return;
   var newId=nuid();
-  var freq=data.f||"daily";
-  var newTask=normTask({id:newId,x:data.x.trim(),f:freq,o:data.o||cu,ct:data.ct||"daily",tm:data.tm||"",dueDate:"",kind:data.kind||"routine",dayMode:data.dayMode||"workdays",rotate:data.rotate||"none",mlTerm:data.mlTerm||"monthly",mlSwitchDate:data.mlSwitchDate||"",reminderDate:data.reminderDate||""});
-  if(data.f==="once")newTask.onDate=dky(sDay);
+  var newTask=normTask({id:newId,x:data.x.trim(),f:"once",o:data.o||cu,ct:data.ct||"daily",tm:data.tm||"",dueDate:"",kind:"routine",dayMode:data.dayMode||"workdays",rotate:data.rotate||"none",mlTerm:data.mlTerm||"monthly",mlSwitchDate:data.mlSwitchDate||"",reminderDate:data.reminderDate||""});
+  newTask.onDate=dky(sDay);
   setTl(function(p){return p.concat([newTask])});
   setBOw(function(p){var n=Object.assign({},p);n[newId]=data.o||cu;return n});
   // Send as chat message to notify partner
@@ -810,7 +809,7 @@ function todayView(){
     isT?ce("div",{className:"sbar"},ce("span",null,"🏫 8–15h"),ce("span",{className:"ar"},"→"),ce("span",null,"👩‍👦 15–19h"),ce("span",{className:"ar"},"→"),ce("span",null,"🏠 Abend")):null,
     // Quick add button
     ce("button",{style:{width:"100%",padding:"14px",borderRadius:12,border:"1.5px dashed #CBD5E1",background:"#fff",fontSize:15,fontWeight:600,color:"#64748B",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8},
-      onClick:function(){setFd({x:"",detail:"",f:"daily",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:"",isQuick:true});setMod({type:"quickAdd"})}},
+      onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:"",isQuick:true});setMod({type:"quickAdd"})}},
       "＋ Neue Aufgabe hinzufügen"
     ),
     reminderTodayTasks.length?ce(TS,{title:"Mental Load · Erinnerung heute",icon:"🔔",tasks:filt(reminderTodayTasks),mode:"today"}):null,
@@ -1151,13 +1150,9 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
       ce("div",{className:"md-t"},ce("span",null,"＋ Neue Aufgabe"),ce("button",{className:"md-x",onClick:function(){setMod(null)}},"✕")),
       ce("div",{className:"fg"},ce("label",{className:"fl"},"Aufgabe"),
         ce("input",{className:"fi",value:fd.x||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{x:e.target.value})})},placeholder:"Was muss erledigt werden?",autoFocus:true})),
-      ce("div",{className:"fr"},
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Bereich"),
-          ce("select",{className:"fse",value:fd.ct||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{ct:e.target.value})})}},
-            CL.map(function(c){return ce("option",{key:c.id,value:c.id},c.i+" "+c.t)}))),
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Wann"),
-          ce("select",{className:"fse",value:fd.f||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{f:e.target.value})})}},
-            Object.keys(FL).map(function(k){return ce("option",{key:k,value:k},FL[k])})))),
+      ce("div",{className:"fg"},ce("label",{className:"fl"},"Bereich"),
+        ce("select",{className:"fse",value:fd.ct||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{ct:e.target.value})})}},
+          CL.map(function(c){return ce("option",{key:c.id,value:c.id},c.i+" "+c.t)}))),
       ce("div",{className:"fr"},
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuständig"),
           ce("select",{className:"fse",value:fd.o||cu,onChange:function(e){setFd(function(p){return Object.assign({},p,{o:e.target.value})})}},
@@ -1165,7 +1160,7 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),
           ce("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},
             ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends")))),
-      fd.f==="once"?ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})):null,
+      ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
 var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental Load"},{id:"chat",i:"💬",l:"Chat"},{id:"chk",i:"⚖️",l:"Check-in"}];
 return ce("div",{className:"app"},
