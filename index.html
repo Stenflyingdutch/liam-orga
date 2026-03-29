@@ -65,6 +65,7 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 .tc-t{font-size:15px;font-weight:500;color:#1E293B;line-height:1.3}
 .tc-sub{display:flex;gap:5px;margin-top:4px;align-items:center}
 .bg{border-radius:5px;font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px}
+.as-mini{border:none;background:#EFF6FF;color:#1D4ED8;border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700}
 .tc-dot{width:10px;height:10px;border-radius:5px;flex-shrink:0}
 /* Expanded task */
 .tc-exp{padding-top:10px;margin-top:8px;border-top:1px solid #F1F5F9}
@@ -387,17 +388,16 @@ function ckKey(tid,freq,date){
 }
 var isD=uc(function(tid,f,d){
   var date=d||sDay;
-  if(f==="once"&&String(tid).indexOf("__rem__")>=0)return rDone[tid]===dky(date);
+  if(f==="once"&&String(tid).indexOf("__rem__")>=0)return !!rDone[tid];
   return !!ts[ckKey(tid,f,date)];
 },[ts,sDay,rDone]);
 var tog=uc(function(tid,f,d){
   var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
   if(String(tid).indexOf("__rem__")>=0){
-    var dayKey=dky(date);
     setRDone(function(p){
       var n=Object.assign({},p);
-      if(n[tid]===dayKey)delete n[tid];
-      else n[tid]=dayKey;
+      if(n[tid])delete n[tid];
+      else n[tid]=dky(date);
       return n;
     });
     return;
@@ -472,11 +472,7 @@ var reminderTodayTasks=um(function(){
     if(sDay<rd)return;
     var ro=gOw(t.id,sDay);if(ro==="NONE")return;
     var rid=mkReminderId(t.id,r);
-    var doneDate=rDone[rid];
-    if(doneDate){
-      var doneDay=pDate(doneDate);
-      if(doneDay&&diffD(sDay,doneDay)>=1)return;
-    }
+    if(rDone[rid])return;
     list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r});
   });
   return list;
@@ -593,6 +589,7 @@ function chkDateForTask(t,baseDate){
 }
 function TC(pr){
   var t=pr.t;var checkDate=chkDateForTask(t,sDay);var d=isD(t.id,t.f,checkDate);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
+  var canQuickAssign=t.kind==="routine"&&!t.isReminder;
   var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder);
   var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
   var isExp=pr.mode==="today"?false:exp===t.id;
@@ -640,6 +637,7 @@ function TC(pr){
         ce("div",{className:"tc-sub"},
           ce("div",{className:"tc-dot",style:{backgroundColor:oc[1]}}),
           ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
+          canQuickAssign?ce("button",{className:"as-mini",onClick:function(e){e.stopPropagation();setFd({tid:t.id,per:ow,scope:"day",weekdays:[1,2,3,4,5]});setMod({type:"assign"})}},"↺ Tag"):null,
           (t.dueDate||t.reminderDate)?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date((t.reminderDate||t.dueDate)+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
           mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
