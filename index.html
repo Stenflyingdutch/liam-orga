@@ -408,7 +408,7 @@ var extraT=um(function(){
 var sts=um(function(){var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0}};dayT.forEach(function(t){var c=isD(t.id,t.f,sDay);tot++;if(c)dn++;if(pp[t.owner]){pp[t.owner].t++;if(c)pp[t.owner].d++}});return{tot:tot,dn:dn,pp:pp}},[dayT,isD,sDay]);
 var sm=um(function(){var isDly=function(t){return t.f==="daily"||t.f==="once"};return{m:dayT.filter(function(t){return t.tm==="morning"&&isDly(t)}),mid:dayT.filter(function(t){return t.tm==="midday"&&isDly(t)}),a:dayT.filter(function(t){return t.tm==="afternoon"&&isDly(t)}),e:dayT.filter(function(t){return t.tm==="evening"&&isDly(t)}),d:dayT.filter(function(t){return isDly(t)&&!t.tm}),o:dayT.filter(function(t){return!isDly(t)})}},[dayT]);
 var reminderTodayTasks=um(function(){
-  var todayKey=dky(sDay),list=[];
+  var list=[];
   tl.forEach(function(t){
     if(t.kind!=="mental"||!Array.isArray(t.reminders))return;
     t.reminders.forEach(function(r){
@@ -515,9 +515,13 @@ function Cal(){
       return ce("button",{key:k,className:"cal-d"+(act?" act":"")+(isTd&&!act?" today":""),onClick:function(){setSDay(new Date(d));setExp(null)}},
         ce("span",{className:"dn"},DN[d.getDay()]),ce("span",{className:"dnum"},d.getDate()))})));}
 // TASK CARD - clean: checkbox, text, colored dot. Tap to expand
+function chkDateForTask(t,baseDate){
+  if(t&&t.isReminder&&t.dueDate){var rd=pDate(t.dueDate);if(rd)return rd}
+  return baseDate;
+}
 function TC(pr){
-  var t=pr.t;var d=isD(t.id,t.f,sDay);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
-  var showDoneBox=!(pr.mode==="today"&&(t.kind==="mental"||t.isReminder));
+  var t=pr.t;var checkDate=chkDateForTask(t,sDay);var d=isD(t.id,t.f,checkDate);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
+  var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder);
   var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
   var isExp=exp===t.id;
   var isTodayMode=pr.mode==="today";
@@ -554,7 +558,7 @@ function TC(pr){
   }
   return ce("div",{className:"tc"+(d&&showDoneBox?" done":"")},
     ce("div",{className:"tc-top"},
-      showDoneBox?ce("button",{className:"ck"+(d?" on":""),onClick:function(e){e.stopPropagation();tog(t.id,t.f,sDay)}},d?"✓":""):ce("div",{style:{width:26,minWidth:26}}),
+      showDoneBox?ce("button",{className:"ck"+(d?" on":""),onClick:function(e){e.stopPropagation();tog(t.id,t.f,checkDate)}},d?"✓":""):ce("div",{style:{width:26,minWidth:26}}),
       ce("div",{className:"tc-c",onClick:function(){
         if(!isTodayMode){openEdit();return}
         setExp(isExp?null:t.id);if(!isExp&&ur2>0)mkRd(mk)
@@ -573,7 +577,7 @@ function TC(pr){
     ):null);
 }
 // TIME SECTION - collapsible
-function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(t){return isD(t.id,t.f,sDay)}).length;var ad=dc===pr.tasks.length;
+function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(t){return isD(t.id,t.f,chkDateForTask(t,sDay))}).length;var ad=dc===pr.tasks.length;
   var skey=pr.title;var isCol=!!secCol[skey];
   function togSec(){setSecCol(function(p){var n=Object.assign({},p);n[skey]=!n[skey];return n})}
   return ce("div",{className:"tsec"},
