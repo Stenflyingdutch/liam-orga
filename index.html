@@ -241,6 +241,12 @@ function addMonthsKeepDay(d,months){var n=new Date(d.getFullYear(),d.getMonth(),
 function nextDueDateByFreq(dueDate,freq){var d=pDate(dueDate);if(!d)return"";if(freq==="weekly")d.setDate(d.getDate()+7);else if(freq==="monthly")d=addMonthsKeepDay(d,1);else if(freq==="quarterly")d=addMonthsKeepDay(d,3);else return"";return dky(d)}
 function wky(d){var j=new Date(d.getFullYear(),0,1);return d.getFullYear()+"-W"+Math.ceil(((d-j)/864e5+j.getDay()+1)/7)}
 function mky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
+function termIdx(d,term){
+  if(term==="quarterly")return d.getFullYear()*4+Math.floor(d.getMonth()/3);
+  if(term==="yearly")return d.getFullYear();
+  return d.getFullYear()*12+d.getMonth();
+}
+function flipOw(o){if(o==="SANDER")return"NATA";if(o==="NATA")return"SANDER";return o}
 function sw(d){var x=new Date(d);var dd=x.getDay();var diff=dd===0?-6:1-dd;x.setDate(x.getDate()+diff);x.setHours(0,0,0,0);return x}
 function ew(d){var x=sw(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);return x}
 function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"}
@@ -341,6 +347,11 @@ var gOw=uc(function(tid,date){
   }
   // 3. Base owner
   var base=bOw[tid]||(task.o)||"NONE";
+  if(task.kind==="mental"){
+    if(base==="NONE")return "NONE";
+    var idx=termIdx(date,task.mlTerm||"monthly");
+    return idx%2===0?base:flipOw(base);
+  }
   return ["SANDER","NATA","NONE"].indexOf(base)>=0?base:"NONE";
 },[dOw,bOw,tl,wPlan]);
 var sOwn=uc(function(tid,per,scope,date){
@@ -379,6 +390,12 @@ var dayT=um(function(){
   var dow=sDay.getDay();var dk=dky(sDay);
   var filtered=tl.filter(function(t){
     if(t.kind!=="routine")return false;
+    var wp=wPlan[t.id];
+    if(wp&&typeof wp==="object"){
+      var wd=wp[String(dow)];
+      if(!wd||wd==="NONE")return false;
+      return true;
+    }
     if(t.ct==="kita"&&(dow===0||dow===6))return false;
     if(t.f==="once")return t.onDate===dk;
     if(t.f==="daily"){
@@ -583,6 +600,7 @@ function TC(pr){
           t.dueDate&&!t.isReminder?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date(t.dueDate+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
           mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
+      isTodayMode&&!t.isReminder?ce("button",{className:"lib",style:{marginLeft:8},onClick:function(e){e.stopPropagation();openEdit()}}, "✏️"):null,
     expNode,
     // Preview last comment when collapsed
     !isExp&&mList.length>0?ce("div",{style:{marginTop:4,marginLeft:32,fontSize:11,color:ur2>0?"#1D4ED8":"#94A3B8",fontWeight:ur2>0?600:400,cursor:"pointer"},onClick:function(){setExp(t.id);mkRd(mk)}},
@@ -647,7 +665,7 @@ function extraView(){
   var grouped={};tasks.forEach(function(t){if(!grouped[t.ct])grouped[t.ct]={cat:cMap[t.ct],tasks:[]};grouped[t.ct].tasks.push(t)});
   return ce("div",{className:"vp"},
     ce("div",{className:"lh"},ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load"),ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"asneeded",o:"NONE",ct:"partner",tm:"",dueDate:"",kind:"mental",dayMode:"workdays",rotate:"none",mlTerm:"monthly",mlSwitchDate:"",reminders:[]});setMod({type:"new"})}},"＋ Neu")),
-    ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Zeigt Verantwortliche, Intervall und Wechseldatum."),
+    ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Wechselt automatisch am 1. von Monat, Quartal oder Jahr."),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
       [["ALL","Alle",null],["SANDER","Sander","#1D4ED8"],["NATA","Nata","#BE185D"]].map(function(f){
         var act=fp===f[0];
@@ -668,9 +686,7 @@ function extraView(){
               ce("div",{className:"li-m"},
                 ce("span",{className:"bg",style:{backgroundColor:oc[0],color:oc[1]}},P[ow]||P.NONE),
                 " ",
-                ce("span",{className:"bg",style:{backgroundColor:"#EEF2FF",color:"#4338CA"}},MLT[t.mlTerm]||"Monat"),
-                t.mlSwitchDate?" ":null,
-                t.mlSwitchDate?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"Wechsel "+new Date(t.mlSwitchDate+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"})):null
+                ce("span",{className:"bg",style:{backgroundColor:"#EEF2FF",color:"#4338CA"}},MLT[t.mlTerm]||"Monat")
               )
             ),
             ce("div",{style:{display:"flex",gap:4}},
@@ -894,49 +910,38 @@ function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var i
       ce("div",{className:"md-t"},ce("span",null,isE?"✏️ Bearbeiten":"＋ Neue Aufgabe"),ce("button",{className:"md-x",onClick:function(){setMod(null)}},"✕")),
       ce("div",{className:"fg"},ce("label",{className:"fl"},"Aufgabe"),ce("input",{className:"fi",value:fd.x||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{x:e.target.value})})},placeholder:"Was?"})),
       ce("div",{className:"fg"},ce("label",{className:"fl"},"Details"),ce("textarea",{className:"fta",value:fd.detail||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{detail:e.target.value})})},placeholder:"Optional..."})),
+      fd.kind!=="routine"?ce("div",{className:"fr"},
+        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Bereich"),ce("select",{className:"fse",value:fd.ct||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{ct:e.target.value})})}},CL.map(function(c){return ce("option",{key:c.id,value:c.id},c.i+" "+c.t)})))):null,
       ce("div",{className:"fr"},
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Bereich"),ce("select",{className:"fse",value:fd.ct||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{ct:e.target.value})})}},CL.map(function(c){return ce("option",{key:c.id,value:c.id},c.i+" "+c.t)})))),
-      ce("div",{className:"fr"},
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuständig"),ce("select",{className:"fse",value:fd.o||"SANDER",onChange:function(e){setFd(function(p){return Object.assign({},p,{o:e.target.value})})}},["NONE","SANDER","NATA"].map(function(k){return ce("option",{key:k,value:k},P[k])}))),
+        fd.kind!=="routine"?ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuständig"),ce("select",{className:"fse",value:fd.o||"SANDER",onChange:function(e){setFd(function(p){return Object.assign({},p,{o:e.target.value})})}},["NONE","SANDER","NATA"].map(function(k){return ce("option",{key:k,value:k},P[k])}))):null,
         fd.kind==="routine"?ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),ce("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends"))):null),
-      fd.kind==="routine"?ce("div",{className:"fr"},
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tage"),
-          ce("select",{className:"fse",value:fd.dayMode||"workdays",onChange:function(e){setFd(function(p){return Object.assign({},p,{dayMode:e.target.value})})}},
-            ce("option",{value:"workdays"},"Mo–Fr"),
-            ce("option",{value:"alldays"},"Mo–So"))),
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Wechsel"),
-          ce("select",{className:"fse",value:fd.rotate||"none",onChange:function(e){setFd(function(p){return Object.assign({},p,{rotate:e.target.value})})}},
-            ce("option",{value:"none"},"Fix"),
-            ce("option",{value:"day"},"Täglich abwechselnd"),
-            ce("option",{value:"week"},"Wöchentlich abwechselnd")))):null,
       fd.kind==="routine"?ce("div",{className:"fg"},
-        ce("label",{className:"fl"},"Wochenzuordnung (pro Tag)"),
-        ce("div",{style:{display:"grid",gridTemplateColumns:"repeat("+(fd.dayMode==="workdays"?5:7)+",1fr)",gap:6}},
-          (fd.dayMode==="workdays"?[1,2,3,4,5]:[1,2,3,4,5,6,0]).map(function(d){
+        ce("label",{className:"fl"},"Wochenzuordnung (Mo–So)"),
+        ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}},
+          [1,2,3,4,5,6,0].map(function(d){
             var DN3=["So","Mo","Di","Mi","Do","Fr","Sa"];
-            var cur=fd.weekPlan&&typeof fd.weekPlan==="object"?fd.weekPlan[String(d)]:null;
-            var nxt=cur==="SANDER"?"NATA":"SANDER";
-            var col=cur?OC[cur]:["#F8FAFC","#94A3B8"];
+            var cur=fd.weekPlan&&typeof fd.weekPlan==="object"?fd.weekPlan[String(d)]:"NONE";
+            var nxt=cur==="NONE"?"SANDER":cur==="SANDER"?"NATA":"NONE";
+            var col=OC[cur]||OC.NONE;
             return ce("button",{key:d,style:{padding:"8px 4px",borderRadius:8,border:"1.5px solid "+col[1],background:col[0],fontSize:11,fontWeight:700,color:col[1]},
               onClick:function(){
                 setFd(function(prev){
                   var wp=prev.weekPlan&&typeof prev.weekPlan==="object"?Object.assign({},prev.weekPlan):{};
-                  wp[String(d)]=nxt;
+                  if(nxt==="NONE")delete wp[String(d)];
+                  else wp[String(d)]=nxt;
                   return Object.assign({},prev,{weekPlan:wp});
                 });
               }},
               ce("div",null,DN3[d]),
-              ce("div",{style:{fontSize:10,marginTop:2}},cur?P[cur].slice(0,1):"–"));
+              ce("div",{style:{fontSize:10,marginTop:2}},cur==="NONE"?"–":P[cur].slice(0,1)));
           })),
-        ce("div",{style:{fontSize:11,color:"#94A3B8",marginTop:6}},"Tippen wechselt zwischen Sander und Nata.")):null,
+        ce("div",{style:{fontSize:11,color:"#94A3B8",marginTop:6}},"Tippen wechselt: Keine → Sander → Nata.")):null,
       fd.kind==="mental"?ce("div",{className:"fr"},
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuordnung"),
           ce("select",{className:"fse",value:fd.mlTerm||"monthly",onChange:function(e){setFd(function(p){return Object.assign({},p,{mlTerm:e.target.value})})}},
             ce("option",{value:"monthly"},"Monat"),
             ce("option",{value:"quarterly"},"Quartal"),
             ce("option",{value:"yearly"},"Jahr"))),
-        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Wechsel am"),
-          ce("input",{className:"fi",type:"date",value:fd.mlSwitchDate||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{mlSwitchDate:e.target.value})})}})),
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Erinnerung"),
           ce("input",{className:"fi",type:"date",value:fd.newReminder||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{newReminder:e.target.value})})}})),
         ce("button",{className:"la",style:{alignSelf:"end",height:42},onClick:function(){
