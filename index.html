@@ -513,8 +513,9 @@ var reminderTodayTasks=um(function(){
     if(sDay<rd)return;
     var ro=gOw(t.id,sDay);if(ro==="NONE")return;
     var rid=mkReminderId(t.id,r);
-    if(rDone[rid])return;
-    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r});
+    var done=!!rDone[rid];
+    if(done&&dky(sDay)!==r)return;
+    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done});
   });
   return list;
 },[tl,sDay,cMap,gOw,rDone]);
@@ -533,11 +534,28 @@ var savT=function(data){
   data=normTask(data);
   if(data.kind==="routine"||data.kind==="mental"||data.f==="daily")data.dueDate="";
   if(data.f==="once"&&!data.onDate)data.onDate=dky(sDay);
+  var oldTask=data.id?tMap[data.id]:null;
+  var prevBaseOwner=data.id?(bOw[data.id]||(oldTask&&oldTask.o)||"NONE"):"NONE";
+  var clearReminderOnOwnerSwitch=data.kind==="mental"&&data.id&&
+    ((prevBaseOwner==="SANDER"&&data.o==="NATA")||(prevBaseOwner==="NATA"&&data.o==="SANDER"));
+  if(clearReminderOnOwnerSwitch){
+    data.reminderDate="";
+    data.reminders=[];
+  }
   var persistData=Object.assign({},data);
   delete persistData.weekPlan;
   var taskId=data.id;
   if(data.id){setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,persistData):t})});if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n})}
   else{var nn=Object.assign({},persistData,{id:nuid()});taskId=nn.id;setTl(function(p){return p.concat([nn])});setBOw(function(p){var n=Object.assign({},p);n[nn.id]=nn.o;return n})}
+  if(clearReminderOnOwnerSwitch){
+    setRDone(function(prev){
+      var n=Object.assign({},prev);
+      Object.keys(prev).forEach(function(k){
+        if(k.split("__rem__")[0]===data.id)delete n[k];
+      });
+      return n;
+    });
+  }
   if(data.kind==="routine"){
     setWPlan(function(prev){
       var n=Object.assign({},prev);
@@ -678,7 +696,7 @@ function TC(pr){
           }},"＋")));
     }
   }else if(isExp&&t.isReminder){
-    expNode=ce("div",{className:"tc-exp"},ce("div",{style:{fontSize:13,color:"#64748B"}},"Erinnerung aus Mental Load. Sie bleibt in dieser Woche sichtbar, bis du sie als erledigt markierst."));
+    expNode=ce("div",{className:"tc-exp"},ce("div",{style:{fontSize:13,color:"#64748B"}},"Erinnerung aus Mental Load. Erledigte Erinnerungen bleiben heute durchgestrichen sichtbar und verschwinden ab morgen."));
   }
   return ce("div",{className:"tc"+(d&&showDoneBox?" done":""),onClick:onCardClick},
     ce("div",{className:"tc-top"},
