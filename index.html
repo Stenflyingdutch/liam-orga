@@ -603,7 +603,6 @@ function TC(pr){
           t.dueDate&&!t.isReminder?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date(t.dueDate+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
           mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
-      isTodayMode&&!t.isReminder&&t.kind!=="mental"?ce("button",{className:"lib",style:{marginLeft:8},onClick:function(e){e.stopPropagation();openEdit()}}, "✏️"):null,
     expNode,
     // Preview last comment when collapsed
     !isExp&&mList.length>0?ce("div",{style:{marginTop:4,marginLeft:32,fontSize:11,color:ur2>0?"#1D4ED8":"#94A3B8",fontWeight:ur2>0?600:400,cursor:"pointer"},onClick:function(e){e.stopPropagation();setExp(t.id);mkRd(mk)}},
