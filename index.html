@@ -687,7 +687,17 @@ function TC(pr){
         ce("div",{className:"tc-t",style:d&&showDoneBox?{textDecoration:"line-through"}:{}},t.x,ur2>0?ce("span",{className:"ubg",style:{marginLeft:6,verticalAlign:"middle"}},ur2):null),
         ce("div",{className:"tc-sub"},
           ce("div",{className:"tc-dot",style:{backgroundColor:oc[1]}}),
-          canQuickAssign?ce("button",{className:"own-link",style:{color:oc[1]},onClick:function(e){e.stopPropagation();setFd({tid:t.id,per:ow,scope:"day",weekdays:[1,2,3,4,5]});setMod({type:"assign"})}},P[ow]):ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
+          canQuickAssign?ce("button",{className:"own-link",style:{color:oc[1]},onClick:function(e){
+            e.stopPropagation();
+            if(isTodayMode){
+              var next=flipOw(ow);
+              if(next!==ow){
+                setDOw(function(prev){var n=Object.assign({},prev);n[t.id+"_"+dky(sDay)]=next;return n});
+              }
+              return;
+            }
+            setFd({tid:t.id,per:ow,scope:"day",weekdays:[1,2,3,4,5]});setMod({type:"assign"})
+          }},P[ow]):ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
           (t.dueDate||t.reminderDate)?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date((t.reminderDate||t.dueDate)+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
           mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
