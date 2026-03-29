@@ -166,7 +166,7 @@ var OC={SANDER:["#DBEAFE","#1D4ED8"],NATA:["#FCE7F3","#BE185D"],NONE:["#F8FAFC",
 var FL={daily:"Täglich",once:"Nur heute",weekly:"Wöchentl.",monthly:"Monatl.",quarterly:"Quartal",yearly:"Jährlich",asneeded:"Bei Bedarf",ongoing:"Laufend",setup:"Setup"};
 var FC={daily:"#DC2626",once:"#F59E0B",weekly:"#E8A317",monthly:"#2563EB",quarterly:"#4F46E5",yearly:"#0F766E",asneeded:"#6B7280",ongoing:"#059669",setup:"#DB2777"};
 var RL={none:"Fix",day:"Täglich",week:"Wöchentlich",month:"Monatlich"};
-var MLT={monthly:"Monat",quarterly:"Quartal",yearly:"Jahr"};
+var MLT={monthly:"Monat",quarterly:"Quartal",yearly:"Jahr",permanent:"Fix"};
 var CL=[
 {id:"daily",t:"Tägliches",i:"☀️",c:"#E8A317"},{id:"kita",t:"Kita",i:"🏫",c:"#2563EB"},
 {id:"health",t:"Krankheit",i:"🏥",c:"#DC2626"},{id:"clothing",t:"Kleidung",i:"👕",c:"#7C3AED"},
@@ -225,7 +225,7 @@ function normTask(t){
     nt.rotate=nt.rotate||"none"; // none|day|week|month
     nt.dueDate="";
   }else{
-    nt.mlTerm=nt.mlTerm||"monthly"; // monthly|quarterly|yearly
+    nt.mlTerm=nt.mlTerm||"monthly"; // monthly|quarterly|yearly|permanent
     nt.mlSwitchDate=nt.mlSwitchDate||"";
     if(typeof nt.reminderDate!=="string"||!nt.reminderDate){
       nt.reminderDate=Array.isArray(nt.reminders)&&nt.reminders.length?nt.reminders[0]:"";
@@ -245,6 +245,7 @@ function nextDueDateByFreq(dueDate,freq){var d=pDate(dueDate);if(!d)return"";if(
 function wky(d){var j=new Date(d.getFullYear(),0,1);return d.getFullYear()+"-W"+Math.ceil(((d-j)/864e5+j.getDay()+1)/7)}
 function mky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
 function termIdx(d,term){
+  if(term==="permanent")return -1;
   if(term==="quarterly")return d.getFullYear()*4+Math.floor(d.getMonth()/3);
   if(term==="yearly")return d.getFullYear();
   return d.getFullYear()*12+d.getMonth();
@@ -307,6 +308,7 @@ var _secCol=us({}),secCol=_secCol[0],setSecCol=_secCol[1];
 var _qaText=us(""),qaText=_qaText[0],setQaText=_qaText[1];
 var _tOrd=us([]),tOrd=_tOrd[0],setTOrd=_tOrd[1];
 var _wPlan=us({}),wPlan=_wPlan[0],setWPlan=_wPlan[1]; // {taskId: {0:"SANDER",1:"NATA",...} or "alt"}
+var _mlTermState=us({}),mlTermState=_mlTermState[0],setMlTermState=_mlTermState[1];
 var fromServer=ur(0);
 var days=um(function(){return g7(wOff)},[wOff]);
 // Firebase sync
@@ -334,6 +336,44 @@ ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){sa
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("rDone",rDone)},500);return function(){clearTimeout(t)}},[rDone,ld]);
 ue(function(){if(!ld||fromServer.current>0||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
+ue(function(){
+  if(!tl.length)return;
+  var now=new Date();
+  var changed=false;
+  var nextState=Object.assign({},mlTermState);
+  var changedIds={};
+  tl.forEach(function(t){
+    if(t.kind!=="mental")return;
+    var idx=termIdx(now,t.mlTerm||"monthly");
+    var prev=mlTermState[t.id];
+    nextState[t.id]=idx;
+    if(prev!==undefined&&prev!==idx&&idx!==-1)changedIds[t.id]=true;
+  });
+  Object.keys(nextState).forEach(function(k){
+    var stillThere=tl.some(function(t){return t.id===k&&t.kind==="mental"});
+    if(!stillThere){delete nextState[k];changed=true;}
+  });
+  if(Object.keys(changedIds).length){
+    changed=true;
+    setTl(function(list){return list.map(function(t){
+      if(!changedIds[t.id])return t;
+      return Object.assign({},t,{reminderDate:"",reminders:[]});
+    })});
+    setRDone(function(prev){
+      var n=Object.assign({},prev);
+      Object.keys(prev).forEach(function(k){
+        var tid=k.split("__rem__")[0];
+        if(changedIds[tid])delete n[k];
+      });
+      return n;
+    });
+  }
+  var keysA=Object.keys(nextState),keysB=Object.keys(mlTermState);
+  if(!changed&&keysA.length===keysB.length){
+    for(var i=0;i<keysA.length;i++){if(nextState[keysA[i]]!==mlTermState[keysA[i]]){changed=true;break}}
+  }else if(keysA.length!==keysB.length){changed=true;}
+  if(changed)setMlTermState(nextState);
+},[tl,mlTermState]);
 ue(function(){localStorage.setItem("lr2",JSON.stringify(rdM))},[rdM]);
 ue(function(){localStorage.setItem("lf",fp)},[fp]);
 var gOw=uc(function(tid,date){
@@ -362,6 +402,7 @@ var gOw=uc(function(tid,date){
   // 3. Base owner
   var base=bOw[tid]||(task.o)||"NONE";
   if(task.kind==="mental"){
+    if((task.mlTerm||"monthly")==="permanent")return base;
     if(base==="NONE")return "NONE";
     var idx=termIdx(date,task.mlTerm||"monthly");
     return idx%2===0?base:flipOw(base);
@@ -597,7 +638,17 @@ function TC(pr){
   var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
   var isExp=pr.mode==="today"?false:exp===t.id;
   var isTodayMode=pr.mode==="today";
-  function openEdit(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}
+  function openEdit(){
+    if(t.isReminder){
+      var parent=tMap[t.parentTaskId];
+      if(!parent)return;
+      setFd({id:parent.id,x:parent.x,detail:parent.detail||"",reminderDate:t.reminderDate||getReminderDate(parent)||""});
+      setMod({type:"editReminder"});
+      return;
+    }
+    setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));
+    setMod({type:"edit"});
+  }
   function onCardClick(){
     if(ur2>0)mkRd(mk);
     openEdit();
@@ -706,7 +757,7 @@ function extraView(){
   var grouped={};tasks.forEach(function(t){if(!grouped[t.ct])grouped[t.ct]={cat:cMap[t.ct],tasks:[]};grouped[t.ct].tasks.push(t)});
   return ce("div",{className:"vp"},
     ce("div",{className:"lh"},ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load"),ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"asneeded",o:"NONE",ct:"partner",tm:"",dueDate:"",kind:"mental",dayMode:"workdays",rotate:"none",mlTerm:"monthly",mlSwitchDate:"",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
-    ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Wechselt automatisch am 1. von Monat, Quartal oder Jahr."),
+    ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Wechselt automatisch am 1. von Monat, Quartal oder Jahr – oder bleibt mit „Fix“ dauerhaft bei einer Person."),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
       [["ALL","Alle",null],["SANDER","Sander","#1D4ED8"],["NATA","Nata","#BE185D"]].map(function(f){
         var act=fp===f[0];
@@ -957,6 +1008,28 @@ function assignMod(){if(!mod||mod.type!=="assign")return null;var t=tMap[fd.tid]
       // Save button for day/week/month/forever
       ce("button",{className:"assv",style:{marginTop:12},onClick:function(){sOwn(fd.tid,fd.per,fd.scope,sDay);setMod(null)}},"Speichern")));}
 // EDIT/NEW MODAL
+function reminderEditMod(){
+  if(!mod||mod.type!=="editReminder")return null;
+  return ce("div",{className:"mo",onClick:function(e){if(e.target===e.currentTarget)setMod(null)}},
+    ce("div",{className:"md"},
+      ce("div",{className:"md-t"},ce("span",null,"🔔 Erinnerung bearbeiten"),ce("button",{className:"md-x",onClick:function(){setMod(null)}},"✕")),
+      ce("div",{className:"fg"},ce("label",{className:"fl"},"Aufgabe"),ce("input",{className:"fi",value:fd.x||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{x:e.target.value})})}})),
+      ce("div",{className:"fg"},ce("label",{className:"fl"},"Details"),ce("textarea",{className:"fta",value:fd.detail||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{detail:e.target.value})})},placeholder:"Optional..."})),
+      ce("div",{className:"fg"},ce("label",{className:"fl"},"Datum der Erinnerung"),ce("input",{className:"fi",type:"date",value:fd.reminderDate||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{reminderDate:e.target.value})})}})),
+      ce("button",{className:"fsub",onClick:function(){
+        if(!(fd.x||"").trim())return;
+        setTl(function(list){return list.map(function(it){
+          if(it.id!==fd.id)return it;
+          var reminder=fd.reminderDate||"";
+          return Object.assign({},it,{x:fd.x.trim(),detail:fd.detail||"",reminderDate:reminder,reminders:reminder?[reminder]:[]});
+        })});
+        setMod(null);
+      }},"Speichern"),
+      ce("button",{className:"fdel",onClick:function(){
+        setTl(function(list){return list.map(function(it){return it.id===fd.id?Object.assign({},it,{reminderDate:"",reminders:[]}):it})});
+        setMod(null);
+      }},"🗑 Erinnerung löschen")));
+}
 function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var isE=mod.type==="edit";
   return ce("div",{className:"mo",onClick:function(e){if(e.target===e.currentTarget)setMod(null)}},
     ce("div",{className:"md"},
@@ -994,7 +1067,8 @@ function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var i
           ce("select",{className:"fse",value:fd.mlTerm||"monthly",onChange:function(e){setFd(function(p){return Object.assign({},p,{mlTerm:e.target.value})})}},
             ce("option",{value:"monthly"},"Monat"),
             ce("option",{value:"quarterly"},"Quartal"),
-            ce("option",{value:"yearly"},"Jahr"))),
+            ce("option",{value:"yearly"},"Jahr"),
+            ce("option",{value:"permanent"},"Fix"))),
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Erinnerung"),
           ce("input",{className:"fi",type:"date",value:fd.reminderDate||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{reminderDate:e.target.value})})}}))):null,
       fd.kind==="mental"&&fd.reminderDate?ce("button",{className:"fdel",style:{marginTop:0,marginBottom:10},onClick:function(){setFd(function(p){return Object.assign({},p,{reminderDate:""})})}},"🗑 Erinnerung löschen"):null,
@@ -1028,7 +1102,7 @@ var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"e
 return ce("div",{className:"app"},
   ce("div",{className:"hdr"},ce("div",{className:"hdr-l"},ce("span",{style:{fontSize:22}},"👶"),ce("div",null,ce("div",{className:"hdr-t"},"Liam Orga"),ce("div",{className:"hdr-d"},new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})))),ce("div",{className:"hdr-r"},ce("div",{className:"sdot "+(onl?"on":"off")}),ce("div",{className:"hdr-s"},sts.dn+"/"+sts.tot+" ✓"))),
   ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="extra"?extraView():null,vw==="chat"?chatView():null,vw==="lib"?routineView():null,vw==="chk"?chkView():null),
-  assignMod(),editMod(),quickAddMod(),
+  assignMod(),editMod(),reminderEditMod(),quickAddMod(),
   ce("div",{className:"nav"},navI.map(function(n){return ce("button",{key:n.id,className:"nb"+(vw===n.id?" act":""),onClick:function(){setVw(n.id);if(n.id==="chat")setChatThread(null);setExp(null)}},ce("span",{className:"ni"},n.i),ce("span",{className:"nl"},n.l),n.id==="chat"&&uCnt>0?ce("span",{className:"nbg"},uCnt):null)})));
 }
 ReactDOM.createRoot(document.getElementById("root")).render(ce(App));
