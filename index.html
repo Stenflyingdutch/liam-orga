@@ -555,6 +555,8 @@ var reminderTodayTasks=um(function(){
     if(!r)return;
     var rd=pDate(r);if(!rd)return;
     if(sDay<rd)return;
+    var term=t.mlTerm||"monthly";
+    if(term!=="permanent"&&termIdx(sDay,term)!==termIdx(rd,term))return;
     var ro=gOw(t.id,sDay);if(ro==="NONE")return;
     var rid=mkReminderId(t.id,r);
     var done=!!rDone[rid];
