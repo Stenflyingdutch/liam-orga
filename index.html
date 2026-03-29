@@ -163,8 +163,8 @@ var db=firebase.firestore();db.enablePersistence({synchronizeTabs:true}).catch(f
 var R=React,ce=R.createElement,us=R.useState,ue=R.useEffect,uc=R.useCallback,um=R.useMemo,ur=R.useRef;
 var P={SANDER:"Sander",NATA:"Nata",BOTH:"Beide",NANNY:"Nanny"};
 var OC={SANDER:["#DBEAFE","#1D4ED8"],NATA:["#FCE7F3","#BE185D"],BOTH:["#E0E7FF","#4338CA"],NANNY:["#FEF3C7","#D97706"]};
-var FL={daily:"Täglich",once:"Nur heute",weekly:"Wöchentl.",monthly:"Monatl.",bimonthly:"2-3M",quarterly:"Quartal",asneeded:"Bei Bedarf",ongoing:"Laufend",setup:"Setup"};
-var FC={daily:"#DC2626",once:"#F59E0B",weekly:"#E8A317",monthly:"#2563EB",bimonthly:"#7C3AED",quarterly:"#4F46E5",asneeded:"#6B7280",ongoing:"#059669",setup:"#DB2777"};
+var FL={daily:"Täglich",once:"Nur heute",weekly:"Wöchentl.",monthly:"Monatl.",quarterly:"Quartal",yearly:"Jährlich",asneeded:"Bei Bedarf",ongoing:"Laufend",setup:"Setup"};
+var FC={daily:"#DC2626",once:"#F59E0B",weekly:"#E8A317",monthly:"#2563EB",quarterly:"#4F46E5",yearly:"#0F766E",asneeded:"#6B7280",ongoing:"#059669",setup:"#DB2777"};
 var CL=[
 {id:"daily",t:"Tägliches",i:"☀️",c:"#E8A317"},{id:"kita",t:"Kita",i:"🏫",c:"#2563EB"},
 {id:"health",t:"Krankheit",i:"🏥",c:"#DC2626"},{id:"clothing",t:"Kleidung",i:"👕",c:"#7C3AED"},
@@ -211,6 +211,20 @@ var DT=[
 {id:"p1",x:"Mental Load Check-in",f:"weekly",o:"BOTH",ct:"partner"},
 {id:"p2",x:"Geschenke",f:"asneeded",o:"NATA",ct:"partner"},
 {id:"p4",x:"Passt alles?",f:"ongoing",o:"BOTH",ct:"partner"}];
+function inferType(t){return (t.f==="daily"||t.f==="weekly"||t.f==="once")?"routine":"mental"}
+function normTask(t){
+  var nt=Object.assign({},t);
+  if(nt.f==="bimonthly")nt.f="quarterly";
+  nt.kind=nt.kind||inferType(nt);
+  if(nt.kind==="routine"){
+    nt.dayMode=nt.dayMode||(nt.f==="daily"?"workdays":"alldays");
+    nt.rotate=nt.rotate||"none"; // none|day|week
+  }else{
+    nt.mlTerm=nt.mlTerm||"monthly"; // monthly|quarterly|yearly
+    nt.reminders=Array.isArray(nt.reminders)?nt.reminders:[];
+  }
+  return nt;
+}
 var DN=["So","Mo","Di","Mi","Do","Fr","Sa"];
 function dky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function pDate(s){if(!s)return null;var p=s.split("-");if(p.length!==3)return null;var y=Number(p[0]),m=Number(p[1])-1,d=Number(p[2]);if(!y||m<0||d<1)return null;return new Date(y,m,d)}
@@ -219,11 +233,14 @@ function addMonthsKeepDay(d,months){var n=new Date(d.getFullYear(),d.getMonth(),
 function nextDueDateByFreq(dueDate,freq){var d=pDate(dueDate);if(!d)return"";if(freq==="weekly")d.setDate(d.getDate()+7);else if(freq==="monthly")d=addMonthsKeepDay(d,1);else if(freq==="quarterly")d=addMonthsKeepDay(d,3);else return"";return dky(d)}
 function wky(d){var j=new Date(d.getFullYear(),0,1);return d.getFullYear()+"-W"+Math.ceil(((d-j)/864e5+j.getDay()+1)/7)}
 function mky(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
+function sw(d){var x=new Date(d);var dd=x.getDay();var diff=dd===0?-6:1-dd;x.setDate(x.getDate()+diff);x.setHours(0,0,0,0);return x}
+function ew(d){var x=sw(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);return x}
 function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"}
 function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
 function g7(off){var r=[];var t=new Date();for(var i=0;i<7;i++){var d=new Date(t);d.setDate(t.getDate()+off*7+i);r.push(d)}return r}
 function mkKey(tid,date){return tid}
+function mkReminderId(tid,ds){return tid+"__rem__"+ds}
 function mfr(m){return m.fr||m.from||"?"}
 function mtx(m){return m.t||m.text||""}
 function mts(m){return m.ts||m.time||0}
@@ -238,7 +255,7 @@ function MI(props){
 function App(){
 var _vw=us("today"),vw=_vw[0],setVw=_vw[1];
 var _ts=us({}),ts=_ts[0],setTs=_ts[1];
-var _tl=us(DT),tl=_tl[0],setTl=_tl[1];
+var _tl=us(DT.map(normTask)),tl=_tl[0],setTl=_tl[1];
 var _dOw=us({}),dOw=_dOw[0],setDOw=_dOw[1];
 var _bOw=us({}),bOw=_bOw[0],setBOw=_bOw[1];
 var _msgs=us({}),msgs=_msgs[0],setMsgs=_msgs[1];
@@ -267,7 +284,7 @@ var days=um(function(){return g7(wOff)},[wOff]);
 ue(function(){
   var u=[];
   u.push(db.collection("v2").doc("ts").onSnapshot(function(d){if(d.exists){fromServer.current++;setTs(d.data());setTimeout(function(){fromServer.current--},500)}setLd(true)}));
-  u.push(db.collection("v2").doc("tl").onSnapshot(function(d){if(d.exists&&d.data().l){fromServer.current++;setTl(d.data().l);setTimeout(function(){fromServer.current--},500)}}));
+  u.push(db.collection("v2").doc("tl").onSnapshot(function(d){if(d.exists&&d.data().l){fromServer.current++;setTl(d.data().l.map(normTask));setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("dOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setDOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("bOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setBOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("msgs").onSnapshot(function(d){if(d.exists){fromServer.current++;setMsgs(d.data());setTimeout(function(){fromServer.current--},500)}}));
@@ -292,8 +309,10 @@ var gOw=uc(function(tid,date){
   var task=tl.find(function(t){return t.id===tid})||{};
   // 1. Day-specific override
   var dayOv=dOw[tid+"_"+dky(date)];if(dayOv)return dayOv;
-  // Morning/evening tasks: always alternate daily between Sander and Nata
-  if(task.tm==="morning"||task.tm==="evening"){return Math.floor(date.getTime()/864e5)%2===0?"SANDER":"NATA"}
+  if(task.kind==="routine"&&task.rotate==="day"){return Math.floor(date.getTime()/864e5)%2===0?"SANDER":"NATA"}
+  if(task.kind==="routine"&&task.rotate==="week"){
+    var monday=sw(date);var wn=Math.floor(monday.getTime()/864e5/7);return wn%2===0?"SANDER":"NATA";
+  }
   // 2. Week plan
   var wp=wPlan[tid];
   if(wp){
@@ -343,8 +362,13 @@ var tMap=um(function(){var m={};tl.forEach(function(t){m[t.id]=t});return m},[tl
 var dayT=um(function(){
   var dow=sDay.getDay();var dk=dky(sDay);
   var filtered=tl.filter(function(t){
+    if(t.kind!=="routine")return false;
     if(t.f==="once")return t.onDate===dk;
-    if(t.f==="daily")return true;if(t.f==="weekly"&&dow===1)return true;
+    if(t.f==="daily"){
+      if(t.dayMode==="workdays"&&(dow===0||dow===6))return false;
+      return true;
+    }
+    if(t.f==="weekly"&&dow===1)return true;
     if(t.f==="monthly"&&sDay.getDate()===1)return true;
     if(["ongoing","asneeded","setup"].indexOf(t.f)>=0)return true;
     return false;
@@ -357,7 +381,7 @@ var dayT=um(function(){
   return filtered;
 },[tl,sDay,cMap,gOw,tOrd]);
 var extraT=um(function(){
-  var filtered=tl.filter(function(t){return t.f!=="daily"&&t.f!=="weekly"})
+  var filtered=tl.filter(function(t){return t.kind==="mental"})
     .map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})});
   if(tOrd.length>0){
     var orderMap={};tOrd.forEach(function(id,i){orderMap[id]=i});
@@ -366,10 +390,9 @@ var extraT=um(function(){
   return filtered;
 },[tl,cMap,gOw,sDay,tOrd]);
 var dueWeekTasks=um(function(){
-  var ws=new Date(sDay);ws.setDate(sDay.getDate()-sDay.getDay());ws.setHours(0,0,0,0);
-  var we=new Date(ws);we.setDate(ws.getDate()+6);we.setHours(23,59,59,999);
+  var ws=sw(sDay),we=ew(sDay);
   return tl.filter(function(t){
-    if(t.f==="daily")return false;
+    if(t.kind!=="mental")return false;
     if(!t.dueDate)return false;
     var due=pDate(t.dueDate);if(!due)return false;
     if(due<ws||due>we)return false;
@@ -379,18 +402,30 @@ var dueWeekTasks=um(function(){
 var sts=um(function(){var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0},BOTH:{t:0,d:0}};dayT.forEach(function(t){var c=isD(t.id,t.f,sDay);tot++;if(c)dn++;if(pp[t.owner]){pp[t.owner].t++;if(c)pp[t.owner].d++}});return{tot:tot,dn:dn,pp:pp}},[dayT,isD,sDay]);
 var sm=um(function(){var isDly=function(t){return t.f==="daily"||t.f==="once"};return{m:dayT.filter(function(t){return t.tm==="morning"&&isDly(t)}),mid:dayT.filter(function(t){return t.tm==="midday"&&isDly(t)}),a:dayT.filter(function(t){return t.tm==="afternoon"&&isDly(t)}),e:dayT.filter(function(t){return t.tm==="evening"&&isDly(t)}),d:dayT.filter(function(t){return isDly(t)&&!t.tm}),o:dayT.filter(function(t){return!isDly(t)})}},[dayT]);
 var mlTasks=um(function(){
-  return dayT.filter(function(t){
-    if(t.tm==="morning"||t.tm==="evening")return false;
-    var due=t.dueDate||t.onDate;if(!due)return false;
+  return tl.filter(function(t){
+    if(t.kind!=="mental")return false;
+    var due=t.dueDate;if(!due)return false;
     var pd=pDate(due);if(!pd)return false;
     var dd=diffD(pd,sDay);return dd>=0&&dd<=7;
+  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})});
+},[tl,sDay,cMap,gOw]);
+var reminderWeekTasks=um(function(){
+  var ws=sw(sDay),we=ew(sDay),list=[];
+  tl.forEach(function(t){
+    if(t.kind!=="mental"||!Array.isArray(t.reminders))return;
+    t.reminders.forEach(function(r){
+      var rd=pDate(r);if(!rd||rd<ws||rd>we)return;
+      list.push({id:mkReminderId(t.id,r),x:"🔔 "+t.x,f:"once",o:gOw(t.id,sDay),owner:gOw(t.id,sDay),ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true});
+    });
   });
-},[dayT,sDay]);
+  return list;
+},[tl,sDay,cMap,gOw]);
 function unreadFor(tid,date){var k=mkKey(tid,date);var m=msgs[k]||[];var rd=rdM[k]||0;var c=0;for(var i=rd;i<m.length;i++){if(mfr(m[i])!==cu)c++}return c}
 var uCnt=um(function(){var c=0;Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m))return;var rd=rdM[k]||0;for(var i=rd;i<m.length;i++){if(mfr(m[i])!==cu)c++}});return c},[msgs,rdM,cu]);
 // New messages for today banner
 var todayNewMsgs=um(function(){var r=[];dayT.forEach(function(t){var u=unreadFor(t.id,sDay);if(u>0)r.push({task:t,count:u})});return r},[dayT,msgs,rdM,sDay,cu]);
 var savT=function(data){
+  data=normTask(data);
   if(data.f==="daily")data.dueDate="";
   if(data.f==="once"&&!data.onDate)data.onDate=dky(sDay);
   if(data.id){setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,data):t})});if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n})}
@@ -411,7 +446,7 @@ function quickAdd(data){
   if(!data.x||!data.x.trim())return;
   var newId=nuid();
   var freq=data.f||"daily";
-  var newTask={id:newId,x:data.x.trim(),f:freq,o:data.o||cu,ct:data.ct||"daily",tm:data.tm||"",dueDate:freq==="daily"?"":(data.dueDate||"")};
+  var newTask=normTask({id:newId,x:data.x.trim(),f:freq,o:data.o||cu,ct:data.ct||"daily",tm:data.tm||"",dueDate:freq==="daily"?"":(data.dueDate||""),kind:data.kind||"routine",dayMode:data.dayMode||"workdays",rotate:data.rotate||"none",mlTerm:data.mlTerm||"monthly",reminders:data.reminders||[]});
   if(data.f==="once")newTask.onDate=dky(sDay);
   setTl(function(p){return p.concat([newTask])});
   setBOw(function(p){var n=Object.assign({},p);n[newId]=data.o||cu;return n});
@@ -489,7 +524,7 @@ function TC(pr){
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
           mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
     // Expanded: owner change + comments
-    isExp?ce("div",{className:"tc-exp"},
+    isExp&&!t.isReminder?ce("div",{className:"tc-exp"},
       // Action row: arrows, edit, delete
       ce("div",{style:{display:"flex",alignItems:"center",gap:4,marginBottom:10}},
         ce("button",{style:{width:32,height:32,borderRadius:8,border:"1.5px solid #E5E7EB",background:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748B"},
@@ -498,7 +533,7 @@ function TC(pr){
           onClick:function(){moveTask(t.id,1)}},"↓"),
         ce("div",{style:{flex:1}}),
         ce("button",{style:{width:32,height:32,borderRadius:8,border:"1.5px solid #E5E7EB",background:"#fff",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"},
-          onClick:function(){setFd({id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||""});setMod({type:"edit"})}},"✏️"),
+          onClick:function(){setFd({id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||"",kind:t.kind||inferType(t),dayMode:t.dayMode||"workdays",rotate:t.rotate||"none",mlTerm:t.mlTerm||"monthly",reminders:t.reminders||[]});setMod({type:"edit"})}},"✏️"),
         ce("button",{style:{width:32,height:32,borderRadius:8,border:"1.5px solid #FEE2E2",background:"#FEF2F2",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"},
           onClick:function(){if(confirm('"'+t.x+'" löschen?')){delT(t.id)}}},"🗑")),
       ce("div",{style:{fontSize:13,fontWeight:700,color:"#64748B",marginBottom:8}},"Zuständig:"),
@@ -511,7 +546,7 @@ function TC(pr){
         ce("div",{style:{fontSize:13,fontWeight:700,color:"#64748B",marginBottom:6}},"Kommentare"+(mList.length>0?" ("+mList.length+")":"")),
         mList.map(function(m,i){return ce("div",{key:i,className:"cmt-item "+(mfr(m)===cu?"cmt-mine":"cmt-theirs")},ce("div",null,mtx(m)),ce("div",{className:"cmt-info"},P[mfr(m)]+" · "+fmtT(mts(m))))}),
         ce(MI,{onSend:function(text){addM(mk,text)},ph:"Kommentar...",cls:"cmt-input"}))
-    ):null,
+    ):isExp&&t.isReminder?ce("div",{className:"tc-exp"},ce("div",{style:{fontSize:13,color:"#64748B"}},"Erinnerung aus Mental Load. Hier abhaken, um sie für diese Woche zu erledigen.")):null,
     // Preview last comment when collapsed
     !isExp&&mList.length>0?ce("div",{style:{marginTop:4,marginLeft:32,fontSize:11,color:ur2>0?"#1D4ED8":"#94A3B8",fontWeight:ur2>0?600:400,cursor:"pointer"},onClick:function(){setExp(t.id);mkRd(mk)}},
       "💬 "+P[mfr(mList[mList.length-1])]+": "+mtx(mList[mList.length-1]).slice(0,45)+(mtx(mList[mList.length-1]).length>45?"...":"")
@@ -564,22 +599,24 @@ function todayView(){
     isT?ce("div",{className:"sbar"},ce("span",null,"🏫 8–15h"),ce("span",{className:"ar"},"→"),ce("span",null,"👩‍👦 15–19h"),ce("span",{className:"ar"},"→"),ce("span",null,"🏠 Abend")):null,
     // Quick add button
     ce("button",{style:{width:"100%",padding:"14px",borderRadius:12,border:"1.5px dashed #CBD5E1",background:"#fff",fontSize:15,fontWeight:600,color:"#64748B",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8},
-      onClick:function(){setFd({x:"",detail:"",f:"daily",o:cu,ct:"daily",tm:"",dueDate:"",isQuick:true});setMod({type:"quickAdd"})}},
+      onClick:function(){setFd({x:"",detail:"",f:"daily",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminders:[],isQuick:true});setMod({type:"quickAdd"})}},
       "＋ Neue Aufgabe hinzufügen"
     ),
-    ce(TS,{title:"Morgens",icon:"🌅",tasks:filt(sm.m)}),
-    ce(TS,{title:"Abends",icon:"🌙",tasks:filt(sm.e)}),
-    ce(TS,{title:"Fällig diese Woche ("+weekLabel+")",icon:"🧠",tasks:filt(dueWeekTasks)}),
-    filt(mlTasks).length>0?ce(TS,{title:"Mental Load (fällig ≤ 7 Tage)",icon:"🧠",tasks:filt(mlTasks)}):ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:12}},"Keine Mental-Load-Aufgaben in den nächsten 7 Tagen fällig."),
+    ce(TS,{title:"Routine · Morgens",icon:"🌅",tasks:filt(sm.m)}),
+    ce(TS,{title:"Routine · Abends",icon:"🌙",tasks:filt(sm.e)}),
+    ce(TS,{title:"Routine · Weitere",icon:"✅",tasks:filt(sm.d.concat(sm.mid).concat(sm.a).concat(sm.o))}),
+    ce(TS,{title:"Diese Woche aus Mental Load ("+weekLabel+")",icon:"🧠",tasks:filt(reminderWeekTasks)}),
     ce("div",{className:"mlc"},ce("div",{className:"ml-t"},"⚖️ Balance"),
       ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["BOTH","#4338CA"],["NATA","#BE185D"]].map(function(x){var s=sts.pp[x[0]]||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
 function extraView(){
   function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp||t.owner==="BOTH"})}
   var tasks=filt(extraT);
   var done=tasks.filter(function(t){return isD(t.id,t.f,sDay)}).length;
+  var dueSoon=filt(mlTasks);
+  var dueThisWeek=filt(dueWeekTasks);
   return ce("div",{className:"vp"},
     ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B",marginBottom:4}},"🧠 Mental Load"),
-    ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Alle Aufgaben, die nicht täglich oder wöchentlich sind"),
+    ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Monat/Quartal/Jahr zugeordnet. Erinnerungen erscheinen im Heute-Tab."),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
       [["ALL","Alle",null],["SANDER","Sander","#1D4ED8"],["NATA","Nata","#BE185D"]].map(function(f){
         var act=fp===f[0];
@@ -589,6 +626,8 @@ function extraView(){
     ce("div",{className:"gc",style:{marginBottom:12}},
       ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B"}},"Erledigt: "+done+"/"+tasks.length),
       ce(PB,{d:done,t:tasks.length})),
+    dueThisWeek.length?ce(TS,{title:"Fällig diese Woche",icon:"📅",tasks:dueThisWeek}):null,
+    dueSoon.length?ce(TS,{title:"Nächste 7 Tage",icon:"🔔",tasks:dueSoon}):null,
     tasks.length===0?ce("div",{style:{fontSize:13,color:"#94A3B8"}},"Keine passenden Aufgaben gefunden."):tasks.map(function(t){return ce(TC,{key:t.id,t:t,showCat:true})})
   );
 }
@@ -688,7 +727,7 @@ function libView(){
   var grouped={};filtered.forEach(function(t){if(!grouped[t.ct])grouped[t.ct]={cat:cMap[t.ct],tasks:[]};grouped[t.ct].tasks.push(t)});
   function togCat(id){setLibCol(function(p){var n=Object.assign({},p);n[id]=!n[id];return n})}
   return ce("div",{className:"vp"},
-    ce("div",{className:"lh"},ce("div",{className:"lt"},"📚 Library"),ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"daily",o:"BOTH",ct:"daily",tm:"",dueDate:""});setMod({type:"new"})}},"＋ Neu")),
+    ce("div",{className:"lh"},ce("div",{className:"lt"},"📚 Library"),ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"daily",o:"BOTH",ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminders:[]});setMod({type:"new"})}},"＋ Neu")),
     ce("input",{className:"ls",placeholder:"🔍 Suchen...",value:srch,onChange:function(e){setSrch(e.target.value)}}),
     ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10,fontWeight:600}},filtered.length+" Aufgaben"),
     Object.keys(grouped).map(function(k){var cat=grouped[k].cat;var ct=grouped[k].tasks;if(!cat)return null;
@@ -701,7 +740,7 @@ function libView(){
         !isCol?ct.map(function(t){var ow=bOw[t.id]||t.o;return ce("div",{key:t.id,className:"li"},
           ce("div",{className:"li-c"},ce("div",{className:"li-t"},t.x),ce("div",{className:"li-m"},ce("span",{className:"bg",style:{backgroundColor:FC[t.f]+"18",color:FC[t.f]}},FL[t.f])," ",ce("span",{className:"bg",style:{backgroundColor:(OC[ow]||OC.BOTH)[0],color:(OC[ow]||OC.BOTH)[1]}},P[ow]))),
           ce("div",{style:{display:"flex",gap:4}},
-            ce("button",{className:"lib",onClick:function(){setFd({id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||""});setMod({type:"edit"})}},"✏️"),
+            ce("button",{className:"lib",onClick:function(){setFd({id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||"",kind:t.kind||inferType(t),dayMode:t.dayMode||"workdays",rotate:t.rotate||"none",mlTerm:t.mlTerm||"monthly",reminders:t.reminders||[]});setMod({type:"edit"})}},"✏️"),
             ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑")))}):null
       )}));}
 // CHECKIN
@@ -771,11 +810,37 @@ function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var i
       ce("div",{className:"fg"},ce("label",{className:"fl"},"Aufgabe"),ce("input",{className:"fi",value:fd.x||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{x:e.target.value})})},placeholder:"Was?"})),
       ce("div",{className:"fg"},ce("label",{className:"fl"},"Details"),ce("textarea",{className:"fta",value:fd.detail||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{detail:e.target.value})})},placeholder:"Optional..."})),
       ce("div",{className:"fr"},
+        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Art"),
+          ce("select",{className:"fse",value:fd.kind||"routine",onChange:function(e){setFd(function(p){return Object.assign({},p,{kind:e.target.value})})}},
+            ce("option",{value:"routine"},"Routine"),
+            ce("option",{value:"mental"},"Mental Load"))),
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Bereich"),ce("select",{className:"fse",value:fd.ct||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{ct:e.target.value})})}},CL.map(function(c){return ce("option",{key:c.id,value:c.id},c.i+" "+c.t)}))),
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Frequenz"),ce("select",{className:"fse",value:fd.f||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{f:e.target.value})})}},Object.keys(FL).map(function(k){return ce("option",{key:k,value:k},FL[k])})))),
       ce("div",{className:"fr"},
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuständig"),ce("select",{className:"fse",value:fd.o||"BOTH",onChange:function(e){setFd(function(p){return Object.assign({},p,{o:e.target.value})})}},Object.keys(P).map(function(k){return ce("option",{key:k,value:k},P[k])}))),
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),ce("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends")))),
+      fd.kind==="routine"?ce("div",{className:"fr"},
+        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tage"),
+          ce("select",{className:"fse",value:fd.dayMode||"workdays",onChange:function(e){setFd(function(p){return Object.assign({},p,{dayMode:e.target.value})})}},
+            ce("option",{value:"workdays"},"Mo–Fr"),
+            ce("option",{value:"alldays"},"Mo–So"))),
+        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Wechsel"),
+          ce("select",{className:"fse",value:fd.rotate||"none",onChange:function(e){setFd(function(p){return Object.assign({},p,{rotate:e.target.value})})}},
+            ce("option",{value:"none"},"Fix"),
+            ce("option",{value:"day"},"Täglich N/S"),
+            ce("option",{value:"week"},"Wöchentlich N/S")))):null,
+      fd.kind==="mental"?ce("div",{className:"fr"},
+        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuordnung"),
+          ce("select",{className:"fse",value:fd.mlTerm||"monthly",onChange:function(e){setFd(function(p){return Object.assign({},p,{mlTerm:e.target.value})})}},
+            ce("option",{value:"monthly"},"Monat"),
+            ce("option",{value:"quarterly"},"Quartal"),
+            ce("option",{value:"yearly"},"Jahr"))),
+        ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Erinnerung"),
+          ce("input",{className:"fi",type:"date",value:fd.newReminder||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{newReminder:e.target.value})})}})),
+        ce("button",{className:"la",style:{alignSelf:"end",height:42},onClick:function(){
+          if(!fd.newReminder)return;setFd(function(p){var arr=Array.isArray(p.reminders)?p.reminders.slice():[];if(arr.indexOf(p.newReminder)<0)arr.push(p.newReminder);arr.sort();return Object.assign({},p,{reminders:arr,newReminder:""})});
+        }},"＋")):null,
+      fd.kind==="mental"&&fd.reminders&&fd.reminders.length?ce("div",{style:{fontSize:12,color:"#64748B",marginBottom:10}},"Erinnerungen: "+fd.reminders.join(", ")):null,
       fd.f!=="daily"?ce("div",{className:"fg"},
         ce("label",{className:"fl"},"Fälligkeitsdatum"),
         ce("input",{className:"fi",type:"date",value:fd.dueDate||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{dueDate:e.target.value})})}})):null,
