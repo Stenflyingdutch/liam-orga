@@ -514,6 +514,7 @@ function Cal(){
 // TASK CARD - clean: checkbox, text, colored dot. Tap to expand
 function TC(pr){
   var t=pr.t;var d=isD(t.id,t.f,sDay);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
+  var showDoneBox=!(pr.mode==="today"&&(t.kind==="mental"||t.isReminder));
   var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
   var isExp=exp===t.id;
   var isTodayMode=pr.mode==="today";
@@ -546,16 +547,16 @@ function TC(pr){
           }},"＋")));
     }
   }else if(isExp&&t.isReminder){
-    expNode=ce("div",{className:"tc-exp"},ce("div",{style:{fontSize:13,color:"#64748B"}},"Erinnerung aus Mental Load. Hier abhaken, um sie für diese Woche zu erledigen."));
+    expNode=ce("div",{className:"tc-exp"},ce("div",{style:{fontSize:13,color:"#64748B"}},"Erinnerung aus Mental Load. Sie bleibt in dieser Woche sichtbar, bis du sie als erledigt markierst."));
   }
-  return ce("div",{className:"tc"+(d?" done":"")},
+  return ce("div",{className:"tc"+(d&&showDoneBox?" done":"")},
     ce("div",{className:"tc-top"},
-      ce("button",{className:"ck"+(d?" on":""),onClick:function(e){e.stopPropagation();tog(t.id,t.f,sDay)}},d?"✓":""),
+      showDoneBox?ce("button",{className:"ck"+(d?" on":""),onClick:function(e){e.stopPropagation();tog(t.id,t.f,sDay)}},d?"✓":""):ce("div",{style:{width:26,minWidth:26}}),
       ce("div",{className:"tc-c",onClick:function(){
         if(!isTodayMode){openEdit();return}
         setExp(isExp?null:t.id);if(!isExp&&ur2>0)mkRd(mk)
       }},
-        ce("div",{className:"tc-t",style:d?{textDecoration:"line-through"}:{}},t.x,ur2>0?ce("span",{className:"ubg",style:{marginLeft:6,verticalAlign:"middle"}},ur2):null),
+        ce("div",{className:"tc-t",style:d&&showDoneBox?{textDecoration:"line-through"}:{}},t.x,ur2>0?ce("span",{className:"ubg",style:{marginLeft:6,verticalAlign:"middle"}},ur2):null),
         ce("div",{className:"tc-sub"},
           ce("div",{className:"tc-dot",style:{backgroundColor:oc[1]}}),
           ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
