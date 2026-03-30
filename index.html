@@ -686,7 +686,7 @@ if(shOb)return ce("div",{className:"ob"},
   ce("div",{className:"ob-nb"},
     ce("button",{className:"ob-nbtn",style:{borderColor:"#1D4ED8",backgroundColor:cu==="SANDER"?"#1D4ED8":"transparent",color:cu==="SANDER"?"#fff":"#1D4ED8"},onClick:function(){setCu("SANDER")}},"Sander"),
     ce("button",{className:"ob-nbtn",style:{borderColor:"#BE185D",backgroundColor:cu==="NATA"?"#BE185D":"transparent",color:cu==="NATA"?"#fff":"#BE185D"},onClick:function(){setCu("NATA")}},"Nata")),
-  ce("button",{className:"ob-go",disabled:!cu,onClick:function(){localStorage.setItem("lu2",cu);setFp(cu);setShOb(false)}},"Los geht's →"));
+  ce("button",{className:"ob-go",disabled:!cu,onClick:function(){if(cu==="SANDER"||cu==="NATA"){var pw=window.prompt("Kennwort für "+P[cu]+":");if(pw!=="MilbGoesMax"){alert("Falsches Kennwort.");return;}}localStorage.setItem("lu2",cu);setFp(cu);setShOb(false)}},"Los geht's →"));
 // PROGRESS BAR
 function PB(pr){var p=pr.t>0?Math.round(pr.d/pr.t*100):0;return ce("div",{className:"pr"},ce("div",{className:"pr-bg"},ce("div",{className:"pr-f",style:{width:p+"%",backgroundColor:pr.c||"#2563EB"}})),ce("span",{className:"pr-t"},p+"%"))}
 // CALENDAR
