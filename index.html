@@ -65,6 +65,8 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 .praise-card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
 .praise-row{display:flex;gap:8px;align-items:center;margin-top:8px}
 .praise-btn{padding:10px 12px;border-radius:10px;border:1px solid #E5E7EB;background:#fff;font-size:13px;font-weight:700}
+.praise-input{display:flex;gap:8px;margin-top:10px}
+.praise-input input{flex:1;font-size:13px;padding:10px 12px;border-radius:10px;border:1px solid #E5E7EB;background:#fff}
 .bal-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #F1F5F9}
 .bal-row:last-child{border-bottom:none}
 .bal-name{font-size:13px;font-weight:600;color:#1E293B}
@@ -433,6 +435,7 @@ var _wPlan=us({}),wPlan=_wPlan[0],setWPlan=_wPlan[1]; // {taskId: {0:"SANDER",1:
 var _mlTermState=us({}),mlTermState=_mlTermState[0],setMlTermState=_mlTermState[1];
 var _mlQuick=us({}),mlQuick=_mlQuick[0],setMlQuick=_mlQuick[1];
 var _praise=us([]),praise=_praise[0],setPraise=_praise[1];
+var _praiseText=us(""),praiseText=_praiseText[0],setPraiseText=_praiseText[1];
 var _antonella=us({entries:{},targets:{}}),antonella=_antonella[0],setAntonella=_antonella[1];
 var _aMonth=us(new Date()),aMonth=_aMonth[0],setAMonth=_aMonth[1];
 var _aTargetEdit=us(false),aTargetEdit=_aTargetEdit[0],setATargetEdit=_aTargetEdit[1];
@@ -727,12 +730,15 @@ var mentalBalance=um(function(){
   var totalN=rows.reduce(function(sum,r){return sum+r.n},0);
   return {rows:rows,totalS:totalS,totalN:totalN,overall:score(totalS,totalN)};
 },[extraT,cMap]);
-function addPraise(){
+function addPraise(msgText){
   if(cu!=="SANDER"&&cu!=="NATA")return;
   var target=flipOw(cu);
   if(target==="NONE")return;
+  var text=(msgText||"").trim();
   var now=Date.now();
-  setPraise(function(prev){return prev.concat([{id:nuid(),from:cu,to:target,ts:now}]).slice(-200)});
+  setPraise(function(prev){return prev.concat([{id:nuid(),from:cu,to:target,ts:now,text:text}]).slice(-200)});
+  addM(GENERAL_THREAD_ID,"🏆 Lob von "+P[cu]+" an "+P[target]+": "+(text||"Danke für deine Hilfe heute!")+" (+20 Punkte)");
+  setPraiseText("");
 }
 var antonMonthKey=um(function(){return ymk(aMonth)},[aMonth]);
 var antonCurrentMonthKey=um(function(){return ymk(new Date())},[]);
@@ -1138,7 +1144,7 @@ function todayView(){
     ce("div",{className:"gc"},
       isT?ce("div",{className:"gc-t"},greet+", "+P[cu]+" 👋"):ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B"}},sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("div",{className:"gc-s"},ownDone+"/"+ownTasks.length+" erledigt"),ce(PB,{d:ownDone,t:ownTasks.length})),
-    ce("button",{className:"gflink",onClick:function(){setVw("gami")}},"🎮 Zum Gamification-Dashboard"),
+    ce("button",{className:"gflink",onClick:function(){setVw("gami")}},"🏆 Zu Awards"),
     // Quick add button
     ce("button",{style:{width:"100%",padding:"14px",borderRadius:12,border:"1.5px dashed #CBD5E1",background:"#fff",fontSize:15,fontWeight:600,color:"#64748B",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8},
       onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:"",isQuick:true});setMod({type:"quickAdd"})}},
@@ -1161,16 +1167,19 @@ function gamificationView(){
   var canPraise=cu==="SANDER"||cu==="NATA";
   var target=flipOw(cu);
   var recentPraise=praise.slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)}).slice(0,5);
+  var levelPercent=Math.round(gameStats.levelProg/gameStats.levelGoal*100);
   return ce("div",{className:"vp"},
     ce("div",{className:"gfc"},
-      ce("div",{className:"gfh"},ce("div",{className:"gft"},"🎮 Familien-Fortschritt"),ce("div",{className:"gfp"},"Level "+gameStats.level)),
+      ce("div",{className:"gfh"},ce("div",{className:"gft"},"🏆 Awards & Fortschritt"),ce("div",{className:"gfp"},"Level "+gameStats.level)),
       ce("div",{className:"gfgrid"},
         ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.points),ce("div",{className:"gflb"},"Punkte")),
         ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.streak),ce("div",{className:"gflb"},"Streak")),
         ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.monthDone),ce("div",{className:"gflb"},"Diesen Monat"))
       ),
-      ce("div",{style:{fontSize:11,color:"#BFDBFE"}},"Fortschritt bis Level "+(gameStats.level+1)),
+      ce("div",{style:{fontSize:11,color:"#BFDBFE"}},"Fortschritt bis Level "+(gameStats.level+1)+" · "+levelPercent+"%"),
       ce("div",{className:"gfbar"},ce("div",{className:"gffill",style:{width:Math.max(6,Math.round(gameStats.levelProg/gameStats.levelGoal*100))+"%"}})),
+      ce("div",{style:{fontSize:11,color:"#BFDBFE",lineHeight:1.4}},
+        "Punkte = erledigte Aufgaben im Monat (x12) + Serien-Tage (x8) + erhaltenes Lob (x20)."),
       ce("div",{className:"gfb"},gameStats.badges.map(function(b){return ce("span",{key:b,className:"gfbd"},b)}))
     ),
     ce("div",{className:"praise-card"},
@@ -1178,6 +1187,7 @@ function gamificationView(){
       ce("div",{className:"bal-row"},
         ce("div",{className:"bal-name"},"Gesamt"),
         ce("div",{className:"bal-score"},mentalBalance.overall+"% ausgeglichen · "+mentalBalance.totalS+" / "+mentalBalance.totalN)),
+      ce("div",{style:{fontSize:11,color:"#64748B",marginTop:4}},"% zeigt, wie fair Aufgaben zwischen Sander und Nata verteilt sind (100% = gleich verteilt)."),
       mentalBalance.rows.map(function(r){
         return ce("div",{key:r.id,className:"bal-row"},
           ce("div",{className:"bal-name"},(r.cat?r.cat.i+" ":"")+ (r.cat?r.cat.t:r.id)),
@@ -1188,11 +1198,15 @@ function gamificationView(){
       ce("div",{className:"atitle"},"👏 Loben & Bonuspunkte"),
       ce("div",{className:"asub"},"Sander und Nata können sich gegenseitig loben. Jedes Lob gibt +20 Punkte."),
       canPraise?ce("div",{className:"praise-row"},
-        ce("button",{className:"praise-btn",onClick:addPraise},"+"+"20 Punkte für "+P[target]),
+        ce("button",{className:"praise-btn",onClick:function(){addPraise(praiseText)}},"+"+"20 Punkte für "+P[target]),
         ce("span",{style:{fontSize:12,color:"#64748B"}},"Du hast "+gameStats.praiseForMe+" Lobe erhalten")
       ):ce("div",{style:{fontSize:12,color:"#94A3B8",marginTop:8}},"Nur Sander und Nata können Lob vergeben."),
+      canPraise?ce("div",{className:"praise-input"},
+        ce("input",{value:praiseText,onChange:function(e){setPraiseText(e.target.value)},placeholder:"Kurze Lob-Nachricht (wird im Chat geteilt) ...",
+          onKeyDown:function(e){if(e.key==="Enter")addPraise(praiseText)}})
+      ):null,
       recentPraise.length?ce("div",{style:{marginTop:10,fontSize:12,color:"#475569"}},
-        recentPraise.map(function(p){return ce("div",{key:p.id,style:{padding:"3px 0"}},(P[p.from]||p.from)+" → "+(P[p.to]||p.to)+" · "+fmtT(p.ts))})
+        recentPraise.map(function(p){return ce("div",{key:p.id,style:{padding:"3px 0"}},(P[p.from]||p.from)+" → "+(P[p.to]||p.to)+" · "+(p.text||"Danke!")+" · "+fmtT(p.ts))})
       ):ce("div",{style:{fontSize:12,color:"#94A3B8",marginTop:8}},"Noch keine Lobe vergeben.")
     )
   );
@@ -1679,7 +1693,7 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
             ce("option",{value:""},"Keine Zuordnung"),ce("option",{value:"morning"},"Vormittag"),ce("option",{value:"afternoon"},"Nachmittag"),ce("option",{value:"evening"},"Abends")))),
       ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
-var navI=cu==="ANTONELLA"?[{id:"antonella",i:"🕒",l:"Antonella"}]:[{id:"today",i:"🏠",l:"Heute"},{id:"gami",i:"🎮",l:"Game"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental"},{id:"chat",i:"💬",l:"Chat"},{id:"antonella",i:"🕒",l:"Antonella"},{id:"chk",i:"⚖️",l:"Check-in"}];
+var navI=cu==="ANTONELLA"?[{id:"antonella",i:"🕒",l:"Antonella"}]:[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental"},{id:"chat",i:"💬",l:"Chat"},{id:"antonella",i:"🕒",l:"Antonella"},{id:"gami",i:"🏆",l:"Awards"},{id:"chk",i:"⚖️",l:"Check-in"}];
 return ce("div",{className:"app"},
   ce("div",{className:"hdr"},ce("div",{className:"hdr-l"},ce("span",{style:{fontSize:22}},"👶"),ce("div",null,ce("div",{className:"hdr-t"},"Liam Orga"),ce("div",{className:"hdr-d"},new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})))),ce("div",{className:"hdr-r"},ce("div",{className:"sdot "+(onl?"on":"off")}))),
   ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="gami"?gamificationView():null,vw==="antonella"?antonellaView():null,vw==="extra"?extraView():null,vw==="chat"?chatView():null,vw==="lib"?routineView():null,vw==="chk"?chkView():null),
