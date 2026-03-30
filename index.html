@@ -401,7 +401,22 @@ ue(function(){
 },[]);
 ue(function(){var i={};var c=false;tl.forEach(function(t){if(!bOw[t.id]){i[t.id]=t.o;c=true}});if(c)setBOw(function(p){return Object.assign({},i,p)})},[tl]);
 // Save functions - skip only if change came from server
-function saveDoc(doc,data){db.collection("v2").doc(doc).set(data)}
+function saveDoc(doc,data){
+  try{
+    var r=db.collection("v2").doc(doc).set(data);
+    if(r&&typeof r.catch==="function")r.catch(function(e){console.error("save failed",doc,e)});
+  }catch(e){
+    console.error("save failed",doc,e);
+  }
+}
+function saveMsgsSafe(data){
+  try{
+    var r=db.collection("v2").doc("msgs").set(data);
+    if(r&&typeof r.catch==="function")r.catch(function(e){console.error("msgs save failed",e)});
+  }catch(e){
+    console.error("msgs save failed",e);
+  }
+}
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("ts",ts)},500);return function(){clearTimeout(t)}},[ts,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("tl",{l:tl})},500);return function(){clearTimeout(t)}},[tl,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("dOw",dOw)},500);return function(){clearTimeout(t)}},[dOw,ld]);
@@ -535,7 +550,7 @@ var addM=uc(function(key,text){if(!text.trim()||!key)return;
   setMsgs(function(p){
     var n=Object.assign({},p);var targetKey=key===GENERAL_THREAD_ID?GENERAL_THREAD_ID:(String(key).indexOf("_")>=0&&/_[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(key))?String(key):mkKey(key,sDay));
     var a=threadMsgsSafe(n,targetKey).slice();a.push(newMsg);n[targetKey]=a;
-    db.collection("v2").doc("msgs").set(n);
+    saveMsgsSafe(n);
     return n;
   });
 },[cu,sDay]);
@@ -748,7 +763,7 @@ var savT=function(data){
 var delT=function(id){
   setTl(function(p){return p.filter(function(t){return t.id!==id})});
   // Clean up messages
-  setMsgs(function(p){var n=Object.assign({},p);delete n[id];db.collection("v2").doc("msgs").set(n);return n});
+  setMsgs(function(p){var n=Object.assign({},p);delete n[id];saveMsgsSafe(n);return n});
   // Clean up order
   setTOrd(function(p){return p.filter(function(x){return x!==id})});
   // Clean up owners
@@ -765,7 +780,7 @@ function quickAdd(data){
   setBOw(function(p){var n=Object.assign({},p);n[newId]=data.o||cu;return n});
   // Send as chat message to notify partner
   var notifyMsg={t:"📌 Neue Aufgabe: "+data.x.trim(),fr:cu,ts:Date.now(),text:"📌 Neue Aufgabe: "+data.x.trim(),from:cu,time:Date.now()};
-  setMsgs(function(p){var n=Object.assign({},p);var a=n[newId]?n[newId].slice():[];a.push(notifyMsg);n[newId]=a;db.collection("v2").doc("msgs").set(n);return n});
+  setMsgs(function(p){var n=Object.assign({},p);var a=n[newId]?n[newId].slice():[];a.push(notifyMsg);n[newId]=a;saveMsgsSafe(n);return n});
   setMod(null);
 }
 // Move task up or down - swaps with neighbor in same section
@@ -1096,7 +1111,7 @@ function chatView(){
           }
           n[k]=a;
         });
-        db.collection("v2").doc("msgs").set(n);
+        saveMsgsSafe(n);
         return n;
       });
     }
@@ -1183,7 +1198,7 @@ function chatView(){
       return ce(Swipe,{key:th.key,mb:4,radius:10,
         leftText:"🗑 Alle löschen",leftColor:"#FEE2E2",leftTxtColor:"#DC2626",
         rightText:"● Ungelesen",rightColor:"#DBEAFE",rightTxtColor:"#2563EB",
-        onLeft:function(){if(confirm('"'+th.task.x+'" – alle Nachrichten löschen?')){setMsgs(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID){delete n[GENERAL_THREAD_ID]}else{threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){delete n[k]})}db.collection("v2").doc("msgs").set(n);return n})}},
+        onLeft:function(){if(confirm('"'+th.task.x+'" – alle Nachrichten löschen?')){setMsgs(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID){delete n[GENERAL_THREAD_ID]}else{threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){delete n[k]})}saveMsgsSafe(n);return n})}},
         onRight:function(){setRdM(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID)n[GENERAL_THREAD_ID]=0;else threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){n[k]=0});return n})}},
         ce("button",{className:"chtb",style:{margin:0},onClick:function(){setChatThread(th.key);if(th.key===GENERAL_THREAD_ID)mkRd(GENERAL_THREAD_ID);else mkRdTaskDay(th.tid,sDay)}},
           th.unread>0?ce("span",{style:{width:8,height:8,borderRadius:4,background:"#EF4444",flexShrink:0}}):ce("span",{style:{width:8}}),
