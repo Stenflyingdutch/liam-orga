@@ -678,6 +678,37 @@ var mentalQuickTodayTasks=um(function(){
   }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay),isQuickActive:true,f:"asneeded"})});
 },[tl,cMap,gOw,sDay,mlQuick]);
 var sts=um(function(){var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0}};dayT.forEach(function(t){var c=isD(t.id,t.f,sDay);tot++;if(c)dn++;if(pp[t.owner]){pp[t.owner].t++;if(c)pp[t.owner].d++}});return{tot:tot,dn:dn,pp:pp}},[dayT,isD,sDay]);
+function taskLoadWeight(task){
+  var freq=task&&task.f?task.f:"asneeded";
+  var map={daily:8,weekly:4,bimonthly:2.5,monthly:2,quarterly:1,yearly:0.5,asneeded:1.5,ongoing:3,once:2,setup:2};
+  return map[freq]||1;
+}
+var mentalBalance=um(function(){
+  var byCat={};
+  extraT.forEach(function(t){
+    var owner=t.owner;
+    if(owner!=="SANDER"&&owner!=="NATA")return;
+    if(!byCat[t.ct])byCat[t.ct]={cat:cMap[t.ct],SANDER:0,NATA:0,loadS:0,loadN:0};
+    var load=taskLoadWeight(t);
+    byCat[t.ct][owner]+=1;
+    if(owner==="SANDER")byCat[t.ct].loadS+=load;
+    if(owner==="NATA")byCat[t.ct].loadN+=load;
+  });
+  function score(a,b){
+    var hi=Math.max(a,b),lo=Math.min(a,b);
+    if(hi===0)return 100;
+    return Math.round((lo/hi)*100);
+  }
+  var rows=Object.keys(byCat).map(function(k){
+    var it=byCat[k];
+    return {id:k,cat:it.cat,s:it.SANDER,n:it.NATA,loadS:it.loadS,loadN:it.loadN,balance:score(it.loadS,it.loadN)};
+  }).sort(function(a,b){return a.balance-b.balance});
+  var totalS=rows.reduce(function(sum,r){return sum+r.s},0);
+  var totalN=rows.reduce(function(sum,r){return sum+r.n},0);
+  var totalLoadS=rows.reduce(function(sum,r){return sum+r.loadS},0);
+  var totalLoadN=rows.reduce(function(sum,r){return sum+r.loadN},0);
+  return {rows:rows,totalS:totalS,totalN:totalN,totalLoadS:totalLoadS,totalLoadN:totalLoadN,overall:score(totalLoadS,totalLoadN)};
+},[extraT,cMap]);
 var gameStats=um(function(){
   var ownTasks=dayT.filter(function(t){return t.owner===cu;}).concat(mentalQuickTodayTasks.filter(function(t){return t.owner===cu;}));
   var ownDone=ownTasks.filter(function(t){return isD(t.id,t.f,sDay);}).length;
@@ -701,7 +732,8 @@ var gameStats=um(function(){
   var monthPrefix=ymk(new Date());
   var monthDone=Object.keys(doneByDay).filter(function(k){return String(k).indexOf(monthPrefix)===0;}).reduce(function(sum,k){return sum+doneByDay[k]},0);
   var praiseForMe=praise.filter(function(p){return p&&p.to===cu;}).length;
-  var points=monthDone*12+streak*8+praiseForMe*20;
+  var balanceBonus=Math.round((mentalBalance.overall||0)*0.4);
+  var points=monthDone*12+streak*8+praiseForMe*20+balanceBonus;
   var level=Math.floor(points/140)+1;
   var levelGoal=140;
   var levelProg=points%levelGoal;
@@ -710,26 +742,10 @@ var gameStats=um(function(){
   if(ownTasks.length>0&&ownDone===ownTasks.length)badges.push("✅ Tagesziel geschafft");
   if(monthDone>=20)badges.push("🏅 Monatsmacher");
   if(praiseForMe>0)badges.push("👏 "+praiseForMe+"x gelobt");
+  if(mentalBalance.overall>=80)badges.push("⚖️ Mental Load sehr fair");
   if(!badges.length)badges.push("🎯 Erledige 1 Aufgabe für dein erstes Badge");
-  return {ownTasks:ownTasks,ownDone:ownDone,streak:streak,monthDone:monthDone,points:points,level:level,levelGoal:levelGoal,levelProg:levelProg,badges:badges,praiseForMe:praiseForMe};
-},[dayT,mentalQuickTodayTasks,cu,isD,sDay,ts,gOw,praise]);
-var mentalBalance=um(function(){
-  var byCat={};
-  extraT.forEach(function(t){
-    var owner=t.owner;
-    if(owner!=="SANDER"&&owner!=="NATA")return;
-    if(!byCat[t.ct])byCat[t.ct]={cat:cMap[t.ct],SANDER:0,NATA:0};
-    byCat[t.ct][owner]+=1;
-  });
-  function score(a,b){var total=a+b;if(total===0)return 100;return Math.round((1-Math.abs(a-b)/total)*100);}
-  var rows=Object.keys(byCat).map(function(k){
-    var it=byCat[k];
-    return {id:k,cat:it.cat,s:it.SANDER,n:it.NATA,balance:score(it.SANDER,it.NATA)};
-  }).sort(function(a,b){return a.balance-b.balance});
-  var totalS=rows.reduce(function(sum,r){return sum+r.s},0);
-  var totalN=rows.reduce(function(sum,r){return sum+r.n},0);
-  return {rows:rows,totalS:totalS,totalN:totalN,overall:score(totalS,totalN)};
-},[extraT,cMap]);
+  return {ownTasks:ownTasks,ownDone:ownDone,streak:streak,monthDone:monthDone,points:points,level:level,levelGoal:levelGoal,levelProg:levelProg,badges:badges,praiseForMe:praiseForMe,balanceBonus:balanceBonus};
+},[dayT,mentalQuickTodayTasks,cu,isD,sDay,ts,gOw,praise,mentalBalance]);
 function addPraise(msgText){
   if(cu!=="SANDER"&&cu!=="NATA")return;
   var target=flipOw(cu);
@@ -1179,19 +1195,19 @@ function gamificationView(){
       ce("div",{style:{fontSize:11,color:"#BFDBFE"}},"Fortschritt bis Level "+(gameStats.level+1)+" · "+levelPercent+"%"),
       ce("div",{className:"gfbar"},ce("div",{className:"gffill",style:{width:Math.max(6,Math.round(gameStats.levelProg/gameStats.levelGoal*100))+"%"}})),
       ce("div",{style:{fontSize:11,color:"#BFDBFE",lineHeight:1.4}},
-        "Punkte = erledigte Aufgaben im Monat (x12) + Serien-Tage (x8) + erhaltenes Lob (x20)."),
+        "Punkte = erledigte Aufgaben im Monat (x12) + Serien-Tage (x8) + erhaltenes Lob (x20) + Mental-Load-Balance (bis +40)."),
       ce("div",{className:"gfb"},gameStats.badges.map(function(b){return ce("span",{key:b,className:"gfbd"},b)}))
     ),
     ce("div",{className:"praise-card"},
       ce("div",{className:"atitle"},"⚖️ Mental-Load-Verteilung"),
       ce("div",{className:"bal-row"},
         ce("div",{className:"bal-name"},"Gesamt"),
-        ce("div",{className:"bal-score"},mentalBalance.overall+"% ausgeglichen · "+mentalBalance.totalS+" / "+mentalBalance.totalN)),
-      ce("div",{style:{fontSize:11,color:"#64748B",marginTop:4}},"% zeigt, wie fair Aufgaben zwischen Sander und Nata verteilt sind (100% = gleich verteilt)."),
+        ce("div",{className:"bal-score"},mentalBalance.overall+"% ausgeglichen · Aufgaben "+mentalBalance.totalS+" / "+mentalBalance.totalN+" · Load "+mentalBalance.totalLoadS.toFixed(1)+" / "+mentalBalance.totalLoadN.toFixed(1))),
+      ce("div",{style:{fontSize:11,color:"#64748B",marginTop:4}},"% zeigt, wie fair der mentale Load verteilt ist (Frequenz-gewichtet; 100% = gleich verteilt)."),
       mentalBalance.rows.map(function(r){
         return ce("div",{key:r.id,className:"bal-row"},
           ce("div",{className:"bal-name"},(r.cat?r.cat.i+" ":"")+ (r.cat?r.cat.t:r.id)),
-          ce("div",{className:"bal-score"},r.balance+"% · "+r.s+" / "+r.n));
+          ce("div",{className:"bal-score"},r.balance+"% · Aufgaben "+r.s+" / "+r.n+" · Load "+r.loadS.toFixed(1)+" / "+r.loadN.toFixed(1)));
       })
     ),
     ce("div",{className:"praise-card"},
