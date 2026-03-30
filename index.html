@@ -301,12 +301,16 @@ function mfr(m){return m?(m.fr||m.from||"?"):"?"}
 function mtx(m){return m?(m.t||m.text||""):""}
 function mts(m){return m?(m.ts||m.time||0):0}
 function nOw(o){return o==="SANDER"||o==="NATA"||o==="NONE"?o:"NONE"}
-function threadMsgsSafe(store,key){var list=store&&store[key];return Array.isArray(list)?list:[]}
+function threadMsgsSafe(store,key){
+  var list=store&&store[key];
+  if(!Array.isArray(list))return [];
+  return list.filter(function(m){return m&&typeof m==="object"});
+}
 function normalizeMsgStore(data){
   var src=(data&&typeof data==="object")?data:{};
   var out={};
   Object.keys(src).forEach(function(k){
-    if(Array.isArray(src[k]))out[k]=src[k];
+    if(Array.isArray(src[k]))out[k]=src[k].filter(function(m){return m&&typeof m==="object"});
   });
   return out;
 }
