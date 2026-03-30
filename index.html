@@ -833,7 +833,6 @@ function todayView(){
     ce("div",{className:"gc"},
       isT?ce("div",{className:"gc-t"},greet+", "+P[cu]+" 👋"):ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B"}},sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("div",{className:"gc-s"},sts.dn+"/"+sts.tot+" erledigt"),ce(PB,{d:sts.dn,t:sts.tot})),
-    isT?ce("div",{className:"sbar"},ce("span",null,"🏫 8–15h"),ce("span",{className:"ar"},"→"),ce("span",null,"👩‍👦 15–19h"),ce("span",{className:"ar"},"→"),ce("span",null,"🏠 Abend")):null,
     // Quick add button
     ce("button",{style:{width:"100%",padding:"14px",borderRadius:12,border:"1.5px dashed #CBD5E1",background:"#fff",fontSize:15,fontWeight:600,color:"#64748B",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8},
       onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:"",isQuick:true});setMod({type:"quickAdd"})}},
@@ -915,7 +914,10 @@ function Swipe(props){
 function chatView(){
   if(chatThread){
     var tid=chatThread;
-    var t=tMap[tid];var cat=t?cMap[t.ct]:null;var mList=threadMsgsSafe(msgs,chatThread).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+    var isGeneral=tid===GENERAL_THREAD_ID;
+    var t=isGeneral?{x:"Allgemein"}:tMap[tid];
+    var cat=isGeneral?{i:"💭",t:"Allgemein"}:(t?cMap[t.ct]:null);
+    var mList=threadMsgsSafe(msgs,chatThread).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
     function deleteMsg(mode,idx){
       if(mode==="all"){
         setMsgs(function(p){var n=Object.assign({},p);var a=threadMsgsSafe(n,chatThread).slice();a.splice(idx,1);n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n});
@@ -968,7 +970,17 @@ function chatView(){
   threads.sort(function(a,b){return mts(b.last)-mts(a.last)});
   return ce("div",{className:"vp"},
     ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B",marginBottom:4}},"💬 Alle Kommentare"),
-    ce("button",{className:"la",style:{marginBottom:10,width:"100%"},onClick:function(){if(!msgs[GENERAL_THREAD_ID])setMsgs(function(p){var n=Object.assign({},p);n[GENERAL_THREAD_ID]=[];return n});setChatThread(GENERAL_THREAD_ID)}},
+    ce("button",{className:"la",style:{marginBottom:10,width:"100%"},onClick:function(){
+      if(!msgs[GENERAL_THREAD_ID]){
+        setMsgs(function(p){
+          var n=Object.assign({},p);
+          n[GENERAL_THREAD_ID]=[];
+          db.collection("v2").doc("msgs").set(n);
+          return n;
+        });
+      }
+      setChatThread(GENERAL_THREAD_ID);
+    }},
       "＋ Allgemeines Thema starten"),
     ce("div",{style:{fontSize:11,color:"#94A3B8",marginBottom:14}},threads.length+" Konversationen"+(uCnt>0?" · "+uCnt+" ungelesen":"")),
     threads.length===0?ce("div",{style:{textAlign:"center",padding:40,color:"#94A3B8",fontSize:13}},"Noch keine Kommentare. Tippe bei einer Aufgabe auf den Text, um Kommentare zu schreiben."):null,
