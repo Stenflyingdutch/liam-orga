@@ -300,6 +300,14 @@ function mtx(m){return m?(m.t||m.text||""):""}
 function mts(m){return m?(m.ts||m.time||0):0}
 function nOw(o){return o==="SANDER"||o==="NATA"||o==="NONE"?o:"NONE"}
 function threadMsgsSafe(store,key){var list=store&&store[key];return Array.isArray(list)?list:[]}
+function normalizeMsgStore(data){
+  var src=(data&&typeof data==="object")?data:{};
+  var out={};
+  Object.keys(src).forEach(function(k){
+    if(Array.isArray(src[k]))out[k]=src[k];
+  });
+  return out;
+}
 function legacyThreadKey(tid,date){return tid+"_"+dky(date)}
 function threadKeysForTaskOnDate(tid,date){
   var keys=[mkKey(tid,date),legacyThreadKey(tid,date)];
@@ -373,10 +381,10 @@ var days=um(function(){return g7(wOff)},[wOff]);
 ue(function(){
   var u=[];
   u.push(db.collection("v2").doc("ts").onSnapshot(function(d){if(d.exists){fromServer.current++;setTs(d.data());setTimeout(function(){fromServer.current--},500)}setLd(true)}));
-  u.push(db.collection("v2").doc("tl").onSnapshot(function(d){if(d.exists&&d.data().l){fromServer.current++;setTl(d.data().l.map(normTask));setTimeout(function(){fromServer.current--},500)}}));
+  u.push(db.collection("v2").doc("tl").onSnapshot(function(d){if(d.exists&&d.data().l){fromServer.current++;var safeList=Array.isArray(d.data().l)?d.data().l.filter(function(x){return x&&typeof x==="object"}).map(normTask):[];setTl(safeList);setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("dOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setDOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("bOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setBOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("msgs").onSnapshot(function(d){if(d.exists){fromServer.current++;setMsgs(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(db.collection("v2").doc("msgs").onSnapshot(function(d){if(d.exists){fromServer.current++;setMsgs(normalizeMsgStore(d.data()));setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("rDone").onSnapshot(function(d){if(d.exists){fromServer.current++;setRDone(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("tOrd").onSnapshot(function(d){if(d.exists&&d.data().o){fromServer.current++;setTOrd(d.data().o);setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("wPlan").onSnapshot(function(d){if(d.exists){fromServer.current++;setWPlan(d.data());setTimeout(function(){fromServer.current--},500)}}));
@@ -518,7 +526,7 @@ var tog=uc(function(tid,f,d){
 var addM=uc(function(key,text){if(!text.trim()||!key)return;
   var newMsg={t:text.trim(),fr:cu,ts:Date.now(),text:text.trim(),from:cu,time:Date.now()};
   setMsgs(function(p){
-    var n=Object.assign({},p);var targetKey=key===GENERAL_THREAD_ID?GENERAL_THREAD_ID:mkKey(key,sDay);
+    var n=Object.assign({},p);var targetKey=key===GENERAL_THREAD_ID?GENERAL_THREAD_ID:(String(key).indexOf("_")>=0&&/_[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(key))?String(key):mkKey(key,sDay));
     var a=threadMsgsSafe(n,targetKey).slice();a.push(newMsg);n[targetKey]=a;
     db.collection("v2").doc("msgs").set(n);
     return n;
@@ -944,7 +952,7 @@ function MLCard(t){
         setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]=ow;return n});
         setTs(function(prev){var n=Object.assign({},prev);delete n[ckKey(t.id,"asneeded",sDay)];return n});
       }},"＋"):null,
-      ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(threadKey);if(unread>0)mkRd(threadKey)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null))
+      ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(t.id);if(unread>0)mkRdTaskDay(t.id,sDay)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null))
   );
 }
 // TODAY VIEW
