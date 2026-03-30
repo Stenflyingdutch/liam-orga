@@ -284,6 +284,13 @@ function threadKeysForTaskOnDate(tid,date){
   var keys=[mkKey(tid,date),legacyThreadKey(tid,date)];
   return keys[0]===keys[1]?[keys[0]]:keys;
 }
+function mergedThreadMsgs(store,tid,date){
+  var keys=threadKeysForTaskOnDate(tid,date);
+  var out=[];
+  keys.forEach(function(k){out=out.concat(threadMsgsSafe(store,k))});
+  out.sort(function(a,b){return mts(a)-mts(b)});
+  return out;
+}
 function resolveTaskIdFromThreadKey(key,tMap){
   if(!key)return null;
   if(key===GENERAL_THREAD_ID)return GENERAL_THREAD_ID;
@@ -483,11 +490,12 @@ var tog=uc(function(tid,f,d){
 var addM=uc(function(key,text){if(!text.trim()||!key)return;
   var newMsg={t:text.trim(),fr:cu,ts:Date.now(),text:text.trim(),from:cu,time:Date.now()};
   setMsgs(function(p){
-    var n=Object.assign({},p);var a=threadMsgsSafe(n,key).slice();a.push(newMsg);n[key]=a;
+    var n=Object.assign({},p);var targetKey=key===GENERAL_THREAD_ID?GENERAL_THREAD_ID:mkKey(key,sDay);
+    var a=threadMsgsSafe(n,targetKey).slice();a.push(newMsg);n[targetKey]=a;
     db.collection("v2").doc("msgs").set(n);
     return n;
   });
-},[cu]);
+},[cu,sDay]);
 var mkRd=uc(function(key){setRdM(function(p){var m=msgs[key]||[];if(!m.length)return p;var n=Object.assign({},p);n[key]=m.length;return n})},[msgs]);
 var mkRdTaskDay=uc(function(tid,date){threadKeysForTaskOnDate(tid,date).forEach(function(k){mkRd(k)})},[mkRd]);
 var cMap=um(function(){var m={};CL.forEach(function(c){m[c.id]=c});return m},[]);
@@ -939,18 +947,30 @@ function chatView(){
     var isGeneral=tid===GENERAL_THREAD_ID;
     var t=isGeneral?{x:"Allgemein"}:tMap[tid];
     var cat=isGeneral?{i:"💭",t:"Allgemein"}:(t?cMap[t.ct]:null);
-    var mList=threadMsgsSafe(msgs,chatThread).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+    var msgKeys=isGeneral?[GENERAL_THREAD_ID]:threadKeysForTaskOnDate(tid,sDay);
+    var mList=(isGeneral?threadMsgsSafe(msgs,GENERAL_THREAD_ID):mergedThreadMsgs(msgs,tid,sDay)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
     function deleteMsg(mode,idx){
-      if(mode==="all"){
-        setMsgs(function(p){var n=Object.assign({},p);var a=threadMsgsSafe(n,chatThread).slice();a.splice(idx,1);n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n});
-      }else{
-        setMsgs(function(p){
-          var n=Object.assign({},p);var a=threadMsgsSafe(n,chatThread).slice();var m=a[idx];
-          if(!m)return p;
-          m=Object.assign({},m,{hiddenFor:Object.assign({},m.hiddenFor||{},(function(){var o={};o[cu]=true;return o})())});
-          a[idx]=m;n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n;
+      var allMsgs=isGeneral?threadMsgsSafe(msgs,GENERAL_THREAD_ID):mergedThreadMsgs(msgs,tid,sDay);
+      var target=allMsgs[idx];
+      if(!target)return;
+      var targetTs=mts(target);var targetFr=mfr(target);var targetTx=mtx(target);
+      setMsgs(function(p){
+        var n=Object.assign({},p);
+        msgKeys.forEach(function(k){
+          var a=threadMsgsSafe(n,k).slice();
+          var localIdx=a.findIndex(function(m){return mts(m)===targetTs&&mfr(m)===targetFr&&mtx(m)===targetTx});
+          if(localIdx<0)return;
+          if(mode==="all")a.splice(localIdx,1);
+          else{
+            var m=a[localIdx];
+            m=Object.assign({},m,{hiddenFor:Object.assign({},m.hiddenFor||{},(function(){var o={};o[cu]=true;return o})())});
+            a[localIdx]=m;
+          }
+          n[k]=a;
         });
-      }
+        db.collection("v2").doc("msgs").set(n);
+        return n;
+      });
     }
     return ce("div",{style:{display:"flex",flexDirection:"column",height:"100%"}},
       ce("div",{className:"th"},ce("button",{className:"th-bk",onClick:function(){setChatThread(null)}},"←"),
@@ -985,23 +1005,25 @@ function chatView(){
                 ce("div",null,mtx(m)),
                 ce("div",{className:"mbi"},P[mfr(m)]+" · "+mDate.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}))))
           )})),
-      ce(MI,{onSend:function(text){addM(chatThread,text);mkRd(chatThread)},ph:"Antworten..."}));}
-  // Thread list
-  var threads=[];
-  Object.keys(msgs).forEach(function(k){
-    var m=msgs[k];if(!Array.isArray(m)||!m.length)return;
-    var resolvedTid=resolveTaskIdFromThreadKey(k,tMap);
-    if(!resolvedTid)return;
-    var task=resolvedTid===GENERAL_THREAD_ID?{x:"Allgemein"}:tMap[resolvedTid];
-    if(!task&&resolvedTid!==GENERAL_THREAD_ID)return;
-    var cat=resolvedTid===GENERAL_THREAD_ID?{i:"💭",t:"Allgemein"}:cMap[task.ct];
-    var rd=rdM[k]||0;var unread=0;
-    for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)unread++}
-    threads.push({key:k,tid:resolvedTid,task:task,cat:cat,unread:unread,last:m[m.length-1],cnt:m.length})
+      ce(MI,{onSend:function(text){addM(chatThread,text);if(isGeneral)mkRd(GENERAL_THREAD_ID);else mkRdTaskDay(tid,sDay)},ph:"Antworten..."}));}
+  // Thread list (nur Aufgaben aus "Heute" + allgemeiner Thread)
+  var todayTaskMap={};
+  dayT.forEach(function(t){todayTaskMap[t.id]=t});
+  mentalTodayTasks.forEach(function(t){todayTaskMap[t.id]=t});
+  mentalQuickTodayTasks.forEach(function(t){todayTaskMap[t.id]=t});
+  reminderTodayTasks.forEach(function(t){if(t.parentTaskId&&tMap[t.parentTaskId])todayTaskMap[t.parentTaskId]=tMap[t.parentTaskId]});
+  var threads=[{key:GENERAL_THREAD_ID,tid:GENERAL_THREAD_ID,task:{x:"Allgemein"},cat:{i:"💭",t:"Allgemein"},unread:0,last:threadMsgsSafe(msgs,GENERAL_THREAD_ID).slice(-1)[0]||null,cnt:threadMsgsSafe(msgs,GENERAL_THREAD_ID).length}];
+  Object.keys(todayTaskMap).forEach(function(tid){
+    var task=todayTaskMap[tid];if(!task)return;
+    var combined=mergedThreadMsgs(msgs,tid,sDay);
+    var keys=threadKeysForTaskOnDate(tid,sDay);
+    var unread=0;
+    keys.forEach(function(k){
+      var m=threadMsgsSafe(msgs,k);var rd=rdM[k]||0;
+      for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)unread++}
+    });
+    threads.push({key:tid,tid:tid,task:task,cat:cMap[task.ct],unread:unread,last:combined.length?combined[combined.length-1]:null,cnt:combined.length});
   });
-  if(!threads.some(function(th){return th.key===GENERAL_THREAD_ID})){
-    threads.unshift({key:GENERAL_THREAD_ID,tid:GENERAL_THREAD_ID,task:{x:"Allgemein"},cat:{i:"💭",t:"Allgemein"},unread:0,last:null,cnt:0});
-  }
   threads.sort(function(a,b){return mts(b.last)-mts(a.last)});
   return ce("div",{className:"vp"},
     ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B",marginBottom:4}},"💬 Alle Kommentare"),
@@ -1018,9 +1040,9 @@ function chatView(){
       return ce(Swipe,{key:th.key,mb:4,radius:10,
         leftText:"🗑 Alle löschen",leftColor:"#FEE2E2",leftTxtColor:"#DC2626",
         rightText:"● Ungelesen",rightColor:"#DBEAFE",rightTxtColor:"#2563EB",
-        onLeft:function(){if(confirm('"'+th.task.x+'" – alle Nachrichten löschen?')){setMsgs(function(p){var n=Object.assign({},p);delete n[th.key];db.collection("v2").doc("msgs").set(n);return n})}},
-        onRight:function(){setRdM(function(p){var n=Object.assign({},p);n[th.key]=0;return n})}},
-        ce("button",{className:"chtb",style:{margin:0},onClick:function(){setChatThread(th.key);mkRd(th.key)}},
+        onLeft:function(){if(confirm('"'+th.task.x+'" – alle Nachrichten löschen?')){setMsgs(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID){delete n[GENERAL_THREAD_ID]}else{threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){delete n[k]})}db.collection("v2").doc("msgs").set(n);return n})}},
+        onRight:function(){setRdM(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID)n[GENERAL_THREAD_ID]=0;else threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){n[k]=0});return n})}},
+        ce("button",{className:"chtb",style:{margin:0},onClick:function(){setChatThread(th.key);if(th.key===GENERAL_THREAD_ID)mkRd(GENERAL_THREAD_ID);else mkRdTaskDay(th.tid,sDay)}},
           th.unread>0?ce("span",{style:{width:8,height:8,borderRadius:4,background:"#EF4444",flexShrink:0}}):ce("span",{style:{width:8}}),
           ce("span",{style:{fontSize:17}},th.cat?th.cat.i:""),
           ce("div",{style:{flex:1,minWidth:0}},
