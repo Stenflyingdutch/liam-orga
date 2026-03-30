@@ -278,6 +278,7 @@ function mfr(m){return m.fr||m.from||"?"}
 function mtx(m){return m.t||m.text||""}
 function mts(m){return m.ts||m.time||0}
 function nOw(o){return o==="SANDER"||o==="NATA"||o==="NONE"?o:"NONE"}
+function threadMsgsSafe(store,key){var list=store&&store[key];return Array.isArray(list)?list:[]}
 function oInitial(o){return o==="SANDER"?"S":o==="NATA"?"N":"–"}
 function toEditData(t,ow){
   return {id:t.id,x:t.x,detail:t.detail||"",f:t.f,o:ow,ct:t.ct,tm:t.tm||"",dueDate:t.dueDate||"",kind:t.kind||inferType(t),dayMode:t.dayMode||"workdays",rotate:t.rotate||"none",mlTerm:t.mlTerm||"monthly",mlSwitchDate:t.mlSwitchDate||"",reminderDate:getReminderDate(t),weekPlan:null}
@@ -466,11 +467,10 @@ var tog=uc(function(tid,f,d){
     return n
   })
 },[sDay,tMap,mlQuick]);
-var addM=uc(function(key,text){if(!text.trim())return;
+var addM=uc(function(key,text){if(!text.trim()||!key)return;
   var newMsg={t:text.trim(),fr:cu,ts:Date.now(),text:text.trim(),from:cu,time:Date.now()};
   setMsgs(function(p){
-    var n=Object.assign({},p);var a=n[key]?n[key].slice():[];a.push(newMsg);n[key]=a;
-    
+    var n=Object.assign({},p);var a=threadMsgsSafe(n,key).slice();a.push(newMsg);n[key]=a;
     db.collection("v2").doc("msgs").set(n);
     return n;
   });
@@ -915,13 +915,13 @@ function Swipe(props){
 function chatView(){
   if(chatThread){
     var tid=chatThread;
-    var t=tMap[tid];var cat=t?cMap[t.ct]:null;var mList=(msgs[chatThread]||[]).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+    var t=tMap[tid];var cat=t?cMap[t.ct]:null;var mList=threadMsgsSafe(msgs,chatThread).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
     function deleteMsg(mode,idx){
       if(mode==="all"){
-        setMsgs(function(p){var n=Object.assign({},p);var a=n[chatThread]?n[chatThread].slice():[];a.splice(idx,1);n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n});
+        setMsgs(function(p){var n=Object.assign({},p);var a=threadMsgsSafe(n,chatThread).slice();a.splice(idx,1);n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n});
       }else{
         setMsgs(function(p){
-          var n=Object.assign({},p);var a=n[chatThread]?n[chatThread].slice():[];var m=a[idx];
+          var n=Object.assign({},p);var a=threadMsgsSafe(n,chatThread).slice();var m=a[idx];
           if(!m)return p;
           m=Object.assign({},m,{hiddenFor:Object.assign({},m.hiddenFor||{},(function(){var o={};o[cu]=true;return o})())});
           a[idx]=m;n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n;
