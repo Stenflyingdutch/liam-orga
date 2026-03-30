@@ -294,9 +294,9 @@ function getReminderDate(t){
   if(Array.isArray(t.reminders)&&t.reminders.length)return t.reminders[0];
   return "";
 }
-function mfr(m){return m.fr||m.from||"?"}
-function mtx(m){return m.t||m.text||""}
-function mts(m){return m.ts||m.time||0}
+function mfr(m){return m?(m.fr||m.from||"?"):"?"}
+function mtx(m){return m?(m.t||m.text||""):""}
+function mts(m){return m?(m.ts||m.time||0):0}
 function nOw(o){return o==="SANDER"||o==="NATA"||o==="NONE"?o:"NONE"}
 function threadMsgsSafe(store,key){var list=store&&store[key];return Array.isArray(list)?list:[]}
 function legacyThreadKey(tid,date){return tid+"_"+dky(date)}
