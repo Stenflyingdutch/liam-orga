@@ -270,6 +270,8 @@ function ymk(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"
 function toMin(t){if(!t)return null;var p=t.split(":");if(p.length!==2)return null;var h=Number(p[0]),m=Number(p[1]);if(isNaN(h)||isNaN(m))return null;return h*60+m}
 function toHHMM(min){if(min===null||min===undefined||isNaN(min))return"";var h=Math.floor(min/60)%24;var m=min%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")}
 function quarterOptions(){var a=[];for(var m=0;m<24*60;m+=15)a.push(toHHMM(m));return a}
+function antonellaFromOptions(){return quarterOptions().filter(function(t){return toMin(t)>=8*60})}
+function antonellaToOptions(){var opts=quarterOptions().filter(function(t){return toMin(t)>=8*60});opts.push("24:00");return opts}
 function monthGrid(base){var first=new Date(base.getFullYear(),base.getMonth(),1);var start=new Date(first);start.setDate(1-first.getDay());var out=[];for(var i=0;i<42;i++){var d=new Date(start);d.setDate(start.getDate()+i);out.push(d)}return out}
 function dayWorkedMinutes(entry){if(!entry||!entry.from||!entry.to)return 0;var a=toMin(entry.from),b=toMin(entry.to);if(a===null||b===null||b<=a)return 0;return b-a}
 
@@ -408,7 +410,9 @@ var _antonella=us({entries:{},targets:{}}),antonella=_antonella[0],setAntonella=
 var _aMonth=us(new Date()),aMonth=_aMonth[0],setAMonth=_aMonth[1];
 var _aTargetEdit=us(false),aTargetEdit=_aTargetEdit[0],setATargetEdit=_aTargetEdit[1];
 var _aTargetDraft=us(""),aTargetDraft=_aTargetDraft[0],setATargetDraft=_aTargetDraft[1];
-var qOpts=um(function(){return quarterOptions()},[]);
+var antonFromOpts=um(function(){return antonellaFromOptions()},[]);
+var antonToOpts=um(function(){return antonellaToOptions()},[]);
+var ANTONELLA_DEFAULT_ENTRY={from:"15:00",to:"19:00"};
 var fromServer=ur(0);
 var days=um(function(){return g7(wOff)},[wOff]);
 // Firebase sync
@@ -1247,7 +1251,7 @@ function antonellaView(){
   var mLabel=aMonth.toLocaleDateString("de-DE",{month:"long",year:"numeric"});
   var g=monthGrid(aMonth);
   var sKey=dky(sDay);
-  var cur=antonella.entries[sKey]||{from:"",to:""};
+  var cur=antonella.entries[sKey]||ANTONELLA_DEFAULT_ENTRY;
   var selectedMonthNum=monthKeyNum(antonMonthKey);
   var currentMonthNum=monthKeyNum(antonCurrentMonthKey);
   var canEditMonthTarget=selectedMonthNum!==null&&currentMonthNum!==null&&selectedMonthNum>=currentMonthNum;
@@ -1279,13 +1283,22 @@ function antonellaView(){
         ce("button",{className:"cal-arr",onClick:function(){setAMonth(function(d){return new Date(d.getFullYear(),d.getMonth()+1,1)})}},"›")),
       ce("div",{className:"agrid"},["So","Mo","Di","Mi","Do","Fr","Sa"].map(function(n){return ce("div",{key:n,className:"adow"},n)}),
         g.map(function(d){var key=dky(d);var inMonth=d.getMonth()===aMonth.getMonth();var has=dayWorkedMinutes(antonella.entries[key])>0;var cls="aday"+(inMonth?"":" muted")+(key===sKey?" sel":"")+(has?" has":"");
-          return ce("button",{key:key,className:cls,onClick:function(){if(inMonth)setSDay(d)}},d.getDate());
+          return ce("button",{key:key,className:cls,onClick:function(){
+            if(!inMonth)return;
+            setSDay(d);
+            setAntonella(function(prev){
+              if(prev.entries&&prev.entries[key])return prev;
+              var entries=Object.assign({},prev.entries);
+              entries[key]=Object.assign({},ANTONELLA_DEFAULT_ENTRY);
+              return {entries:entries,targets:Object.assign({},prev.targets)};
+            });
+          }},d.getDate());
         }))),
     ce("div",{className:"acard"},
       ce("div",{className:"atitle"},"⏱️ Arbeitszeit am "+sDay.toLocaleDateString("de-DE")),
       ce("div",{className:"arow"},
-        ce("div",{className:"fg",style:{flex:1,marginBottom:0}},ce("label",{className:"fl"},"Von"),ce("select",{className:"fse",value:cur.from||"",onChange:function(e){setEntry("from",e.target.value)}},ce("option",{value:""},"--:--"),qOpts.map(function(t){return ce("option",{key:"f"+t,value:t},t)}))),
-        ce("div",{className:"fg",style:{flex:1,marginBottom:0}},ce("label",{className:"fl"},"Bis"),ce("select",{className:"fse",value:cur.to||"",onChange:function(e){setEntry("to",e.target.value)}},ce("option",{value:""},"--:--"),qOpts.map(function(t){return ce("option",{key:"t"+t,value:t},t)})))) ,
+        ce("div",{className:"fg",style:{flex:1,marginBottom:0}},ce("label",{className:"fl"},"Von"),ce("select",{className:"fse",value:cur.from||"",onChange:function(e){setEntry("from",e.target.value)}},ce("option",{value:""},"--:--"),antonFromOpts.map(function(t){return ce("option",{key:"f"+t,value:t},t)}))),
+        ce("div",{className:"fg",style:{flex:1,marginBottom:0}},ce("label",{className:"fl"},"Bis"),ce("select",{className:"fse",value:cur.to||"",onChange:function(e){setEntry("to",e.target.value)}},ce("option",{value:""},"--:--"),antonToOpts.map(function(t){return ce("option",{key:"t"+t,value:t},t)})))) ,
       ce("div",{style:{fontSize:12,color:"#64748B",marginTop:8}},"Eingaben sind 15-Minuten-genau."),
       ce("div",{style:{fontSize:13,fontWeight:700,color:"#1E293B",marginTop:6}},"Ist an diesem Tag: "+(dayWorkedMinutes(cur)/60).toFixed(2)+" h")),
     ce("div",{className:"acard"},
