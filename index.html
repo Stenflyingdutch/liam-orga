@@ -63,8 +63,11 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 .ck{width:26px;height:26px;min-width:26px;border-radius:7px;border:2px solid #CBD5E1;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent}.ck.on{background:#059669;border-color:#059669;color:#fff}
 .tc-c{flex:1;min-width:0;cursor:pointer}
 .tc-t{font-size:15px;font-weight:500;color:#1E293B;line-height:1.3}
+.tc-note{font-size:11px;color:#94A3B8;line-height:1.35;margin-top:3px;white-space:pre-wrap}
 .tc-sub{display:flex;gap:5px;margin-top:4px;align-items:center}
 .tc-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.plus-btn{border:none;background:#EFF6FF;color:#2563EB;border-radius:999px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.plus-btn:active{background:#DBEAFE}
 .cbtn{border:none;background:#F8FAFC;border-radius:999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#64748B;position:relative}
 .cbtn:active{background:#E2E8F0}
 .cbtn .ubg{position:absolute;top:-3px;right:-3px}
@@ -316,6 +319,7 @@ var _qaText=us(""),qaText=_qaText[0],setQaText=_qaText[1];
 var _tOrd=us([]),tOrd=_tOrd[0],setTOrd=_tOrd[1];
 var _wPlan=us({}),wPlan=_wPlan[0],setWPlan=_wPlan[1]; // {taskId: {0:"SANDER",1:"NATA",...} or "alt"}
 var _mlTermState=us({}),mlTermState=_mlTermState[0],setMlTermState=_mlTermState[1];
+var _mlQuick=us({}),mlQuick=_mlQuick[0],setMlQuick=_mlQuick[1];
 var fromServer=ur(0);
 var days=um(function(){return g7(wOff)},[wOff]);
 // Firebase sync
@@ -329,6 +333,7 @@ ue(function(){
   u.push(db.collection("v2").doc("rDone").onSnapshot(function(d){if(d.exists){fromServer.current++;setRDone(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("tOrd").onSnapshot(function(d){if(d.exists&&d.data().o){fromServer.current++;setTOrd(d.data().o);setTimeout(function(){fromServer.current--},500)}}));
   u.push(db.collection("v2").doc("wPlan").onSnapshot(function(d){if(d.exists){fromServer.current++;setWPlan(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(db.collection("v2").doc("mlQuick").onSnapshot(function(d){if(d.exists){fromServer.current++;setMlQuick(d.data());setTimeout(function(){fromServer.current--},500)}}));
   window.addEventListener("online",function(){setOnl(true)});window.addEventListener("offline",function(){setOnl(false)});
   return function(){u.forEach(function(x){x()})};
 },[]);
@@ -343,6 +348,7 @@ ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){sa
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("rDone",rDone)},500);return function(){clearTimeout(t)}},[rDone,ld]);
 ue(function(){if(!ld||fromServer.current>0||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
 ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
+ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("mlQuick",mlQuick)},500);return function(){clearTimeout(t)}},[mlQuick,ld]);
 ue(function(){
   if(!tl.length)return;
   var now=new Date();
@@ -452,13 +458,14 @@ var tog=uc(function(tid,f,d){
   }
   setTs(function(p){
     var n=Object.assign({},p);var nextDone=!p[k];n[k]=nextDone;db.collection("v2").doc("ts").set(n);
+    if(nextDone&&mlQuick[tid])setMlQuick(function(prev){var m=Object.assign({},prev);delete m[tid];return m});
     if(nextDone&&t&&t.dueDate&&["weekly","monthly","quarterly"].indexOf(t.f)>=0){
       var nd=nextDueDateByFreq(t.dueDate,t.f);
       if(nd){setTl(function(list){return list.map(function(it){return it.id===tid?Object.assign({},it,{dueDate:nd}):it})})}
     }
     return n
   })
-},[sDay,tMap]);
+},[sDay,tMap,mlQuick]);
 var addM=uc(function(key,text){if(!text.trim())return;
   var newMsg={t:text.trim(),fr:cu,ts:Date.now(),text:text.trim(),from:cu,time:Date.now()};
   setMsgs(function(p){
@@ -471,6 +478,15 @@ var addM=uc(function(key,text){if(!text.trim())return;
 var mkRd=uc(function(key){setRdM(function(p){var m=msgs[key]||[];if(!m.length)return p;var n=Object.assign({},p);n[key]=m.length;return n})},[msgs]);
 var cMap=um(function(){var m={};CL.forEach(function(c){m[c.id]=c});return m},[]);
 var tMap=um(function(){var m={};tl.forEach(function(t){m[t.id]=t});return m},[tl]);
+ue(function(){
+  var changed=false;var next=Object.assign({},mlQuick);
+  Object.keys(next).forEach(function(tid){
+    var task=tMap[tid];
+    if(!task||task.kind!=="mental"){delete next[tid];changed=true;return}
+    if(next[tid]!==gOw(tid,sDay)){delete next[tid];changed=true;}
+  });
+  if(changed)setMlQuick(next);
+},[mlQuick,tMap,gOw,sDay]);
 var dayT=um(function(){
   var dow=sDay.getDay();var dk=dky(sDay);
   var filtered=tl.filter(function(t){
@@ -535,6 +551,14 @@ var mentalTodayTasks=um(function(){
     return gOw(t.id,sDay)===cu;
   }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})}).filter(function(t){return t.owner!=="NONE";});
 },[tl,cMap,gOw,sDay,cu]);
+var mentalQuickTodayTasks=um(function(){
+  return tl.filter(function(t){
+    if(t.kind!=="mental")return false;
+    var owner=gOw(t.id,sDay);
+    if(owner==="NONE")return false;
+    return mlQuick[t.id]===owner;
+  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay),isQuickActive:true,f:"asneeded"})});
+},[tl,cMap,gOw,sDay,mlQuick]);
 function unreadFor(tid,date){var k=mkKey(tid,date);var m=msgs[k]||[];var rd=rdM[k]||0;var c=0;for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)c++}return c}
 var uCnt=um(function(){var c=0;Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m))return;var rd=rdM[k]||0;for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)c++}});return c},[msgs,rdM,cu]);
 // New messages for today banner
@@ -657,12 +681,13 @@ function chkDateForTask(t,baseDate){
 function TC(pr){
   var t=pr.t;var checkDate=chkDateForTask(t,sDay);var d=isD(t.id,t.f,checkDate);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
   var canQuickAssign=t.kind==="routine"&&!t.isReminder;
-  var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder);
+  var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder&&!t.isQuickActive);
   var mk=mkKey(t.id,sDay);var mList=(msgs[mk]||[]).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});var ur2=unreadFor(t.id,sDay);
   var cOpen=!!commentOpen[mk];
   var isExp=pr.mode==="today"?false:exp===t.id;
   var isTodayMode=pr.mode==="today";
   function openEdit(){
+    if(pr.mode==="today"&&t.kind==="mental"&&!t.isQuickActive&&!t.isReminder)return;
     if(t.isReminder){
       var parent=tMap[t.parentTaskId];
       if(!parent)return;
@@ -709,6 +734,7 @@ function TC(pr){
       showDoneBox?ce("button",{className:"ck"+(d?" on":""),onClick:function(e){e.stopPropagation();tog(t.id,t.f,checkDate)}},d?"✓":""):ce("div",{style:{width:26,minWidth:26}}),
       ce("div",{className:"tc-c"},
         ce("div",{className:"tc-t",style:d&&showDoneBox?{textDecoration:"line-through"}:{}},t.x,ur2>0?ce("span",{className:"ubg",style:{marginLeft:6,verticalAlign:"middle"}},ur2):null),
+        t.detail?ce("div",{className:"tc-note"},t.detail):null,
         ce("div",{className:"tc-sub"},
           ce("div",{className:"tc-dot",style:{backgroundColor:oc[1]}}),
           canQuickAssign?ce("button",{className:"own-link",style:{color:oc[1]},onClick:function(e){
@@ -724,13 +750,18 @@ function TC(pr){
           }},P[ow]):ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
           (t.dueDate||t.reminderDate)?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date((t.reminderDate||t.dueDate)+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
-          mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null),
-        ce("div",{className:"tc-actions"},
-          ce("button",{className:"cbtn",onClick:function(e){e.stopPropagation();setCommentOpen(function(prev){var n=Object.assign({},prev);n[mk]=!n[mk];if(!n[mk]&&ur2>0)mkRd(mk);return n;});if(ur2>0)mkRd(mk)}},
-            "💬",ur2>0?ce("span",{className:"ubg"},ur2):null)
-        ))),
+          mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null)),
+      ce("div",{className:"tc-actions"},
+        pr.mode==="today"&&t.kind==="mental"&&!t.isReminder&&!t.isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(e){
+          e.stopPropagation();
+          setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]=ow;return n});
+          setTs(function(prev){var n=Object.assign({},prev);delete n[ckKey(t.id,"asneeded",sDay)];return n});
+        }},"＋"):null,
+        ce("button",{className:"cbtn",onClick:function(e){e.stopPropagation();setCommentOpen(function(prev){var n=Object.assign({},prev);n[mk]=!n[mk];if(!n[mk]&&ur2>0)mkRd(mk);return n;});if(ur2>0)mkRd(mk)}},
+          "💬",ur2>0?ce("span",{className:"ubg"},ur2):null)
+      )),
     expNode,
-    cOpen?ce("div",{className:"cmt"},
+    cOpen?ce("div",{className:"cmt",onClick:function(e){e.stopPropagation()}},
       mList.slice(-3).map(function(m,i){return ce("div",{key:i,className:"cmt-item "+(mfr(m)===cu?"cmt-mine":"cmt-theirs")},
         ce("div",null,mtx(m)),
         ce("div",{className:"cmt-info"},P[mfr(m)]+" · "+fmtT(mts(m))))}),
@@ -785,6 +816,7 @@ function todayView(){
       onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:"",isQuick:true});setMod({type:"quickAdd"})}},
       "＋ Neue Aufgabe hinzufügen"
     ),
+    mentalQuickTodayTasks.length?ce(TS,{title:"Mental Load · Heute aktiv",icon:"➕",tasks:filt(mentalQuickTodayTasks),mode:"today"}):null,
     reminderTodayTasks.length?ce(TS,{title:"Mental Load · Erinnerung heute",icon:"🔔",tasks:filt(reminderTodayTasks),mode:"today"}):null,
     ce(TS,{title:"Routine · Morgens",icon:"🌅",tasks:filt(sm.m),mode:"today"}),
     ce(TS,{title:"Routine · Abends",icon:"🌙",tasks:filt(sm.e),mode:"today"}),
