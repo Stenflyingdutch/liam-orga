@@ -217,8 +217,20 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script>
-firebase.initializeApp({apiKey:"AIzaSyBQmM0NrGOC9od2nhWOpFaS2u7XFB1fVb8",authDomain:"maxi-orga.firebaseapp.com",projectId:"maxi-orga",storageBucket:"maxi-orga.firebasestorage.app",messagingSenderId:"446112436224",appId:"1:446112436224:web:797b842a4e9f2ec0a788e5"});
-var db=firebase.firestore();db.enablePersistence({synchronizeTabs:true}).catch(function(){});
+var db=(function(){
+  function emptySnap(){return {exists:false,data:function(){return {}}}}
+  var noopDoc={set:function(){return Promise.resolve()},onSnapshot:function(cb){if(typeof cb==="function")cb(emptySnap());return function(){}}};
+  return {collection:function(){return {doc:function(){return noopDoc}}}}
+})();
+try{
+  if(typeof firebase!=="undefined"){
+    firebase.initializeApp({apiKey:"AIzaSyBQmM0NrGOC9od2nhWOpFaS2u7XFB1fVb8",authDomain:"maxi-orga.firebaseapp.com",projectId:"maxi-orga",storageBucket:"maxi-orga.firebasestorage.app",messagingSenderId:"446112436224",appId:"1:446112436224:web:797b842a4e9f2ec0a788e5"});
+    db=firebase.firestore();
+    db.enablePersistence({synchronizeTabs:true}).catch(function(){});
+  }
+}catch(e){
+  console.warn("Firebase init failed, fallback to local-only mode.",e);
+}
 </script>
 <script>
 var R=React,ce=R.createElement,us=R.useState,ue=R.useEffect,uc=R.useCallback,um=R.useMemo,ur=R.useRef;
