@@ -1051,17 +1051,26 @@ function chatView(){
   mentalTodayTasks.forEach(function(t){todayTaskMap[t.id]=t});
   mentalQuickTodayTasks.forEach(function(t){todayTaskMap[t.id]=t});
   reminderTodayTasks.forEach(function(t){if(t.parentTaskId&&tMap[t.parentTaskId])todayTaskMap[t.parentTaskId]=tMap[t.parentTaskId]});
-  var threads=[{key:GENERAL_THREAD_ID,tid:GENERAL_THREAD_ID,task:{x:"Allgemein"},cat:{i:"💭",t:"Allgemein"},unread:0,last:threadMsgsSafe(msgs,GENERAL_THREAD_ID).slice(-1)[0]||null,cnt:threadMsgsSafe(msgs,GENERAL_THREAD_ID).length}];
+  var threads=[];
+  var generalAll=threadMsgsSafe(msgs,GENERAL_THREAD_ID);
+  var generalMsgs=generalAll.filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+  var generalUnread=0;
+  var gRd=rdM[GENERAL_THREAD_ID]||0;
+  for(var gi=gRd;gi<generalAll.length;gi++){if(generalAll[gi]&&generalAll[gi].hiddenFor&&generalAll[gi].hiddenFor[cu])continue;if(mfr(generalAll[gi])!==cu)generalUnread++}
+  if(generalMsgs.length){
+    threads.push({key:GENERAL_THREAD_ID,tid:GENERAL_THREAD_ID,task:{x:"Allgemein"},cat:{i:"💭",t:"Allgemein"},unread:generalUnread,last:generalMsgs[generalMsgs.length-1],cnt:generalMsgs.length});
+  }
   Object.keys(todayTaskMap).forEach(function(tid){
     var task=todayTaskMap[tid];if(!task)return;
-    var combined=mergedThreadMsgs(msgs,tid,sDay);
+    var combined=mergedThreadMsgs(msgs,tid,sDay).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+    if(!combined.length)return;
     var keys=threadKeysForTaskOnDate(tid,sDay);
     var unread=0;
     keys.forEach(function(k){
       var m=threadMsgsSafe(msgs,k);var rd=rdM[k]||0;
       for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)unread++}
     });
-    threads.push({key:tid,tid:tid,task:task,cat:cMap[task.ct],unread:unread,last:combined.length?combined[combined.length-1]:null,cnt:combined.length});
+    threads.push({key:tid,tid:tid,task:task,cat:cMap[task.ct],unread:unread,last:combined[combined.length-1],cnt:combined.length});
   });
   threads.sort(function(a,b){return mts(b.last)-mts(a.last)});
   return ce("div",{className:"vp"},
@@ -1339,7 +1348,7 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
             ce("option",{value:""},"Keine Zuordnung"),ce("option",{value:"morning"},"Vormittag"),ce("option",{value:"afternoon"},"Nachmittag"),ce("option",{value:"evening"},"Abends")))),
       ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
-var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"antonella",i:"🕒",l:"Antonella"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental Load"},{id:"chat",i:"💬",l:"Chat"},{id:"chk",i:"⚖️",l:"Check-in"}];
+var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental Load"},{id:"chat",i:"💬",l:"Chat"},{id:"antonella",i:"🕒",l:"Antonella"},{id:"chk",i:"⚖️",l:"Check-in"}];
 return ce("div",{className:"app"},
   ce("div",{className:"hdr"},ce("div",{className:"hdr-l"},ce("span",{style:{fontSize:22}},"👶"),ce("div",null,ce("div",{className:"hdr-t"},"Liam Orga"),ce("div",{className:"hdr-d"},new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})))),ce("div",{className:"hdr-r"},ce("div",{className:"sdot "+(onl?"on":"off")}),ce("div",{className:"hdr-s"},sts.dn+"/"+sts.tot+" ✓"))),
   ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="antonella"?antonellaView():null,vw==="extra"?extraView():null,vw==="chat"?chatView():null,vw==="lib"?routineView():null,vw==="chk"?chkView():null),
