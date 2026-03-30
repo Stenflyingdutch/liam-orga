@@ -547,10 +547,9 @@ var reminderTodayTasks=um(function(){
 var mentalTodayTasks=um(function(){
   return tl.filter(function(t){
     if(t.kind!=="mental")return false;
-    if(!cu)return false;
-    return gOw(t.id,sDay)===cu;
-  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})}).filter(function(t){return t.owner!=="NONE";});
-},[tl,cMap,gOw,sDay,cu]);
+    return gOw(t.id,sDay)!=="NONE";
+  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})});
+},[tl,cMap,gOw,sDay]);
 var mentalQuickTodayTasks=um(function(){
   return tl.filter(function(t){
     if(t.kind!=="mental")return false;
@@ -842,7 +841,7 @@ function todayView(){
     ce(TS,{title:"Routine · Weitere",icon:"✅",tasks:filt(sm.d.concat(sm.mid).concat(sm.a).concat(sm.o)),mode:"today"}),
     ce("div",{className:"tsec"},
       ce("div",{className:"tsec-h"},
-        ce("div",{className:"tsec-t"},ce("span",null,"🧠"),"Mental Load · Meine Aufgaben"),
+        ce("div",{className:"tsec-t"},ce("span",null,"🧠"),"Mental Load · Aktive Aufgaben"),
         ce("span",{className:"tsec-c"},filt(mentalTodayTasks).length)),
       filt(mentalTodayTasks).map(function(t){return ce(MLCard,t);})
     ),
