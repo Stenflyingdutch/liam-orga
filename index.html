@@ -666,6 +666,14 @@ var extraT=um(function(){
   }
   return filtered;
 },[tl,cMap,gOw,sDay,tOrd]);
+var mentalQuickTodayTasks=um(function(){
+  return tl.filter(function(t){
+    if(t.kind!=="mental")return false;
+    var owner=gOw(t.id,sDay);
+    if(owner==="NONE")return false;
+    return mlQuick[t.id]===owner;
+  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay),isQuickActive:true,f:"asneeded"})});
+},[tl,cMap,gOw,sDay,mlQuick]);
 var sts=um(function(){var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0}};dayT.forEach(function(t){var c=isD(t.id,t.f,sDay);tot++;if(c)dn++;if(pp[t.owner]){pp[t.owner].t++;if(c)pp[t.owner].d++}});return{tot:tot,dn:dn,pp:pp}},[dayT,isD,sDay]);
 var gameStats=um(function(){
   var ownTasks=dayT.filter(function(t){return t.owner===cu;}).concat(mentalQuickTodayTasks.filter(function(t){return t.owner===cu;}));
@@ -827,14 +835,6 @@ var mentalTodayTasks=um(function(){
     return gOw(t.id,sDay)!=="NONE";
   }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})});
 },[tl,cMap,gOw,sDay]);
-var mentalQuickTodayTasks=um(function(){
-  return tl.filter(function(t){
-    if(t.kind!=="mental")return false;
-    var owner=gOw(t.id,sDay);
-    if(owner==="NONE")return false;
-    return mlQuick[t.id]===owner;
-  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay),isQuickActive:true,f:"asneeded"})});
-},[tl,cMap,gOw,sDay,mlQuick]);
 function unreadFor(tid,date){
   var keys=threadKeysForTaskOnDate(tid,date);var c=0;
   keys.forEach(function(k){
