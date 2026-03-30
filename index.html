@@ -309,7 +309,15 @@ function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{da
 function safeDate(ts){var d=new Date(ts);return isNaN(d.getTime())?null:d}
 function g7(off){var r=[];var b=sw(new Date());b.setDate(b.getDate()+off*7);for(var i=0;i<7;i++){var d=new Date(b);d.setDate(b.getDate()+i);r.push(d)}return r}
 function mkKey(tid,date){return tid}
-var GENERAL_THREAD_ID="__general__";
+var GENERAL_THREAD_ID="general_thread";
+var LEGACY_GENERAL_THREAD_ID="__general__";
+function generalThreadKeys(){return [GENERAL_THREAD_ID,LEGACY_GENERAL_THREAD_ID]}
+function mergedGeneralMsgs(store){
+  var out=[];
+  generalThreadKeys().forEach(function(k){out=out.concat(threadMsgsSafe(store,k))});
+  out.sort(function(a,b){return mts(a)-mts(b)});
+  return out;
+}
 function mkReminderId(tid,ds){return tid+"__rem__"+ds}
 function getReminderDate(t){
   if(!t)return"";
@@ -348,7 +356,7 @@ function mergedThreadMsgs(store,tid,date){
 }
 function resolveTaskIdFromThreadKey(key,tMap){
   if(!key)return null;
-  if(key===GENERAL_THREAD_ID)return GENERAL_THREAD_ID;
+  if(key===GENERAL_THREAD_ID||key===LEGACY_GENERAL_THREAD_ID)return GENERAL_THREAD_ID;
   if(tMap[key])return key;
   var m=String(key).match(/^(.*)_([0-9]{4}-[0-9]{2}-[0-9]{2})$/);
   if(m&&tMap[m[1]])return m[1];
@@ -569,7 +577,7 @@ var tog=uc(function(tid,f,d){
 var addM=uc(function(key,text){if(!text.trim()||!key)return;
   var newMsg={t:text.trim(),fr:cu,ts:Date.now(),text:text.trim(),from:cu,time:Date.now()};
   setMsgs(function(p){
-    var n=Object.assign({},p);var targetKey=key===GENERAL_THREAD_ID?GENERAL_THREAD_ID:(String(key).indexOf("_")>=0&&/_[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(key))?String(key):mkKey(key,sDay));
+    var n=Object.assign({},p);var isGeneralKey=key===GENERAL_THREAD_ID||key===LEGACY_GENERAL_THREAD_ID;var targetKey=isGeneralKey?GENERAL_THREAD_ID:(String(key).indexOf("_")>=0&&/_[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(key))?String(key):mkKey(key,sDay));
     var a=threadMsgsSafe(n,targetKey).slice();a.push(newMsg);n[targetKey]=a;
     saveMsgsSafe(n);
     return n;
@@ -1105,16 +1113,19 @@ function Swipe(props){
 }
 // CHAT VIEW - all conversations, newest first. Tap to open thread with reply
 function chatView(){
+  function mkRdGeneral(){
+    generalThreadKeys().forEach(function(k){mkRd(k)});
+  }
   if(chatThread){
     var tid=chatThread;
-    var isGeneral=tid===GENERAL_THREAD_ID;
+    var isGeneral=tid===GENERAL_THREAD_ID||tid===LEGACY_GENERAL_THREAD_ID;
     var t=isGeneral?{x:"Allgemein"}:tMap[tid];
     if(!isGeneral&&!t)return ce("div",{className:"vp"},ce("button",{className:"bk",onClick:function(){setChatThread(null)}},"← Zurück"),ce("div",{style:{fontSize:13,color:"#94A3B8"}},"Thread nicht gefunden."));
     var cat=isGeneral?{i:"💭",t:"Allgemein"}:(t?cMap[t.ct]:null);
-    var msgKeys=isGeneral?[GENERAL_THREAD_ID]:threadKeysForTaskOnDate(tid,sDay);
-    var mList=(isGeneral?threadMsgsSafe(msgs,GENERAL_THREAD_ID):mergedThreadMsgs(msgs,tid,sDay)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+    var msgKeys=isGeneral?generalThreadKeys():threadKeysForTaskOnDate(tid,sDay);
+    var mList=(isGeneral?mergedGeneralMsgs(msgs):mergedThreadMsgs(msgs,tid,sDay)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
     function deleteMsg(mode,idx){
-      var allMsgs=isGeneral?threadMsgsSafe(msgs,GENERAL_THREAD_ID):mergedThreadMsgs(msgs,tid,sDay);
+      var allMsgs=isGeneral?mergedGeneralMsgs(msgs):mergedThreadMsgs(msgs,tid,sDay);
       var target=allMsgs[idx];
       if(!target)return;
       var targetTs=mts(target);var targetFr=mfr(target);var targetTx=mtx(target);
@@ -1175,7 +1186,7 @@ function chatView(){
                 ce("div",null,mtx(m)),
                 ce("div",{className:"mbi",style:{color:(mfr(m)==="SANDER"||mfr(m)==="NATA")?"rgba(255,255,255,.75)":"#64748B",opacity:1}},(P[mfr(m)]||mfr(m)||"?")+" · "+(mDate?mDate.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"--:--"))))
           )})),
-      ce(MI,{onSend:function(text){addM(chatThread,text);if(isGeneral)mkRd(GENERAL_THREAD_ID);else mkRdTaskDay(tid,sDay)},ph:"Antworten..."}));}
+      ce(MI,{onSend:function(text){addM(chatThread,text);if(isGeneral)mkRdGeneral();else mkRdTaskDay(tid,sDay)},ph:"Antworten..."}));}
   // Thread list (nur Aufgaben aus "Heute" + allgemeiner Thread)
   var todayTaskMap={};
   dayT.forEach(function(t){todayTaskMap[t.id]=t});
@@ -1183,10 +1194,10 @@ function chatView(){
   mentalQuickTodayTasks.forEach(function(t){todayTaskMap[t.id]=t});
   reminderTodayTasks.forEach(function(t){if(t.parentTaskId&&tMap[t.parentTaskId])todayTaskMap[t.parentTaskId]=tMap[t.parentTaskId]});
   var threads=[];
-  var generalAll=threadMsgsSafe(msgs,GENERAL_THREAD_ID);
+  var generalAll=mergedGeneralMsgs(msgs);
   var generalMsgs=generalAll.filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
   var generalUnread=0;
-  var gRd=rdM[GENERAL_THREAD_ID]||0;
+  var gRd=Math.max(rdM[GENERAL_THREAD_ID]||0,rdM[LEGACY_GENERAL_THREAD_ID]||0);
   for(var gi=gRd;gi<generalAll.length;gi++){if(generalAll[gi]&&generalAll[gi].hiddenFor&&generalAll[gi].hiddenFor[cu])continue;if(mfr(generalAll[gi])!==cu)generalUnread++}
   if(generalMsgs.length){
     threads.push({key:GENERAL_THREAD_ID,tid:GENERAL_THREAD_ID,task:{x:"Allgemein"},cat:{i:"💭",t:"Allgemein"},unread:generalUnread,last:generalMsgs[generalMsgs.length-1],cnt:generalMsgs.length});
@@ -1219,9 +1230,9 @@ function chatView(){
       return ce(Swipe,{key:th.key,mb:4,radius:10,
         leftText:"🗑 Alle löschen",leftColor:"#FEE2E2",leftTxtColor:"#DC2626",
         rightText:"● Ungelesen",rightColor:"#DBEAFE",rightTxtColor:"#2563EB",
-        onLeft:function(){if(confirm('"'+th.task.x+'" – alle Nachrichten löschen?')){setMsgs(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID){delete n[GENERAL_THREAD_ID]}else{threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){delete n[k]})}saveMsgsSafe(n);return n})}},
-        onRight:function(){setRdM(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID)n[GENERAL_THREAD_ID]=0;else threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){n[k]=0});return n})}},
-        ce("button",{className:"chtb",style:{margin:0},onClick:function(){setChatThread(th.key);if(th.key===GENERAL_THREAD_ID)mkRd(GENERAL_THREAD_ID);else mkRdTaskDay(th.tid,sDay)}},
+        onLeft:function(){if(confirm('"'+th.task.x+'" – alle Nachrichten löschen?')){setMsgs(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID){generalThreadKeys().forEach(function(k){delete n[k]})}else{threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){delete n[k]})}saveMsgsSafe(n);return n})}},
+        onRight:function(){setRdM(function(p){var n=Object.assign({},p);if(th.key===GENERAL_THREAD_ID){generalThreadKeys().forEach(function(k){n[k]=0})}else threadKeysForTaskOnDate(th.tid,sDay).forEach(function(k){n[k]=0});return n})}},
+        ce("button",{className:"chtb",style:{margin:0},onClick:function(){setChatThread(th.key);if(th.key===GENERAL_THREAD_ID)mkRdGeneral();else mkRdTaskDay(th.tid,sDay)}},
           th.unread>0?ce("span",{style:{width:8,height:8,borderRadius:4,background:"#EF4444",flexShrink:0}}):ce("span",{style:{width:8}}),
           ce("span",{style:{fontSize:17}},th.cat?th.cat.i:""),
           ce("div",{style:{flex:1,minWidth:0}},
