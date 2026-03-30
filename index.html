@@ -284,6 +284,7 @@ function ew(d){var x=sw(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);ret
 function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<17?"afternoon":"evening"}
 function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+function safeDate(ts){var d=new Date(ts);return isNaN(d.getTime())?null:d}
 function g7(off){var r=[];var b=sw(new Date());b.setDate(b.getDate()+off*7);for(var i=0;i<7;i++){var d=new Date(b);d.setDate(b.getDate()+i);r.push(d)}return r}
 function mkKey(tid,date){return tid}
 var GENERAL_THREAD_ID="__general__";
@@ -363,6 +364,8 @@ var _mlTermState=us({}),mlTermState=_mlTermState[0],setMlTermState=_mlTermState[
 var _mlQuick=us({}),mlQuick=_mlQuick[0],setMlQuick=_mlQuick[1];
 var _antonella=us({entries:{},targets:{}}),antonella=_antonella[0],setAntonella=_antonella[1];
 var _aMonth=us(new Date()),aMonth=_aMonth[0],setAMonth=_aMonth[1];
+var _aTargetEdit=us(false),aTargetEdit=_aTargetEdit[0],setATargetEdit=_aTargetEdit[1];
+var _aTargetDraft=us(""),aTargetDraft=_aTargetDraft[0],setATargetDraft=_aTargetDraft[1];
 var qOpts=um(function(){return quarterOptions()},[]);
 var fromServer=ur(0);
 var days=um(function(){return g7(wOff)},[wOff]);
@@ -574,17 +577,57 @@ var extraT=um(function(){
 var sts=um(function(){var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0}};dayT.forEach(function(t){var c=isD(t.id,t.f,sDay);tot++;if(c)dn++;if(pp[t.owner]){pp[t.owner].t++;if(c)pp[t.owner].d++}});return{tot:tot,dn:dn,pp:pp}},[dayT,isD,sDay]);
 var antonMonthKey=um(function(){return ymk(aMonth)},[aMonth]);
 var antonCurrentMonthKey=um(function(){return ymk(new Date())},[]);
+function monthKeyNum(key){
+  var p=String(key||"").split("-");
+  if(p.length!==2)return null;
+  var y=Number(p[0]),m=Number(p[1]);
+  if(!y||!m)return null;
+  return y*12+m;
+}
+function monthHoursByKey(key){
+  var p=String(key||"").split("-");
+  if(p.length!==2)return 0;
+  var y=Number(p[0]),m=Number(p[1])-1;
+  if(!y||m<0)return 0;
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var min=0;
+  for(var i=1;i<=daysInMonth;i++){
+    var d=new Date(y,m,i);
+    min+=dayWorkedMinutes(antonella.entries[dky(d)]);
+  }
+  return min/60;
+}
+var antonEffectiveTarget=um(function(){
+  var memo={};
+  function calc(key,depth){
+    if(memo[key]!==undefined)return memo[key];
+    var explicit=Number(antonella.targets[key]);
+    if(!isNaN(explicit)&&antonella.targets[key]!==""&&antonella.targets[key]!==null){memo[key]=explicit;return explicit}
+    var n=monthKeyNum(key);
+    if(n===null){memo[key]=0;return 0}
+    if(depth>48){memo[key]=0;return 0}
+    var prev=new Date(Math.floor((n-1)/12),((n-1)%12),1);
+    var prevKey=ymk(prev);
+    var prevTarget=calc(prevKey,depth+1);
+    var prevHours=monthHoursByKey(prevKey);
+    var carry=prevHours-prevTarget;
+    var out=prevTarget+carry;
+    memo[key]=Math.round(out*100)/100;
+    return memo[key];
+  }
+  return {get:function(key){return calc(key,0)}};
+},[antonella]);
 var antonMonthStats=um(function(){
   var grid=monthGrid(aMonth);var min=0;
   grid.forEach(function(d){if(d.getMonth()!==aMonth.getMonth())return;var e=antonella.entries[dky(d)];min+=dayWorkedMinutes(e)});
-  var target=Number(antonella.targets[antonMonthKey]||0);
+  var target=antonEffectiveTarget.get(antonMonthKey)||0;
   return {minutes:min,hours:min/60,target:target,diff:min/60-target};
-},[antonella,aMonth,antonMonthKey]);
+},[antonella,aMonth,antonMonthKey,antonEffectiveTarget]);
 var antonCurrentStats=um(function(){
   var now=new Date();var key=ymk(now);var daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   var min=0;for(var i=1;i<=daysInMonth;i++){var d=new Date(now.getFullYear(),now.getMonth(),i);min+=dayWorkedMinutes(antonella.entries[dky(d)])}
-  var target=Number(antonella.targets[key]||0);return {hours:min/60,target:target,diff:min/60-target};
-},[antonella]);
+  var target=antonEffectiveTarget.get(key)||0;return {hours:min/60,target:target,diff:min/60-target};
+},[antonella,antonEffectiveTarget]);
 
 var sm=um(function(){var isDly=function(t){return t.f==="daily"||t.f==="once"};return{m:dayT.filter(function(t){return t.tm==="morning"&&isDly(t)}),mid:dayT.filter(function(t){return t.tm==="midday"&&isDly(t)}),a:dayT.filter(function(t){return t.tm==="afternoon"&&isDly(t)}),e:dayT.filter(function(t){return t.tm==="evening"&&isDly(t)}),d:dayT.filter(function(t){return isDly(t)&&!t.tm}),o:dayT.filter(function(t){return!isDly(t)})}},[dayT]);
 var reminderTodayTasks=um(function(){
@@ -1032,12 +1075,12 @@ function chatView(){
             if(ch==="1")deleteMsg("me",i);
             if(ch==="2")deleteMsg("all",i);
           }
-          var mDate=new Date(mts(m));var prevDate=i>0?new Date(mts(mList[i-1])):null;
-          var showDate=!prevDate||mDate.toDateString()!==prevDate.toDateString();
-          var today=new Date();var isToday=mDate.toDateString()===today.toDateString();
+          var mDate=safeDate(mts(m));var prevDate=i>0?safeDate(mts(mList[i-1])):null;
+          var showDate=!prevDate||!mDate||mDate.toDateString()!==prevDate.toDateString();
+          var today=new Date();var isToday=mDate?mDate.toDateString()===today.toDateString():false;
           var yesterday=new Date(today);yesterday.setDate(today.getDate()-1);
-          var isYesterday=mDate.toDateString()===yesterday.toDateString();
-          var dateLabel=isToday?"Heute":isYesterday?"Gestern":mDate.toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"});
+          var isYesterday=mDate?mDate.toDateString()===yesterday.toDateString():false;
+          var dateLabel=!mDate?"Unbekannt":isToday?"Heute":isYesterday?"Gestern":mDate.toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"});
           return ce("div",{key:i},
             showDate?ce("div",{style:{textAlign:"center",fontSize:12,color:"#94A3B8",fontWeight:600,margin:"14px 0 6px",paddingTop:i>0?8:0}},dateLabel):null,
             ce(Swipe,{mt:8,
@@ -1057,7 +1100,7 @@ function chatView(){
                 onTouchEnd:function(){if(pressTimer)clearTimeout(pressTimer)},
                 onTouchMove:function(){if(pressTimer)clearTimeout(pressTimer)}},
                 ce("div",null,mtx(m)),
-                ce("div",{className:"mbi",style:{color:(mfr(m)==="SANDER"||mfr(m)==="NATA")?"rgba(255,255,255,.75)":"#64748B",opacity:1}},(P[mfr(m)]||mfr(m)||"?")+" · "+mDate.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}))))
+                ce("div",{className:"mbi",style:{color:(mfr(m)==="SANDER"||mfr(m)==="NATA")?"rgba(255,255,255,.75)":"#64748B",opacity:1}},(P[mfr(m)]||mfr(m)||"?")+" · "+(mDate?mDate.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"--:--"))))
           )})),
       ce(MI,{onSend:function(text){addM(chatThread,text);if(isGeneral)mkRd(GENERAL_THREAD_ID);else mkRdTaskDay(tid,sDay)},ph:"Antworten..."}));}
   // Thread list (nur Aufgaben aus "Heute" + allgemeiner Thread)
@@ -1097,7 +1140,7 @@ function chatView(){
     ce("div",{style:{fontSize:11,color:"#94A3B8",marginBottom:14}},threads.length+" Konversationen"+(uCnt>0?" · "+uCnt+" ungelesen":"")),
     threads.length===0?ce("div",{style:{textAlign:"center",padding:40,color:"#94A3B8",fontSize:13}},"Noch keine Kommentare. Tippe bei einer Aufgabe auf den Text, um Kommentare zu schreiben."):null,
     threads.map(function(th){
-      var ld=th.last?new Date(mts(th.last)):null;var td=new Date();var isTd=ld?ld.toDateString()===td.toDateString():false;
+      var ld=th.last?safeDate(mts(th.last)):null;var td=new Date();var isTd=ld?ld.toDateString()===td.toDateString():false;
       var yd=new Date(td);yd.setDate(td.getDate()-1);var isYd=ld?ld.toDateString()===yd.toDateString():false;
       var timeStr=ld?(isTd?ld.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):isYd?"Gestern":ld.toLocaleDateString("de-DE",{day:"numeric",month:"short"})):"Neu";
       return ce(Swipe,{key:th.key,mb:4,radius:10,
@@ -1119,11 +1162,28 @@ function antonellaView(){
   var g=monthGrid(aMonth);
   var sKey=dky(sDay);
   var cur=antonella.entries[sKey]||{from:"",to:""};
+  var selectedMonthNum=monthKeyNum(antonMonthKey);
+  var currentMonthNum=monthKeyNum(antonCurrentMonthKey);
+  var canEditMonthTarget=selectedMonthNum!==null&&currentMonthNum!==null&&selectedMonthNum>=currentMonthNum;
   function setEntry(field,val){
     setAntonella(function(prev){var entries=Object.assign({},prev.entries);var e=Object.assign({},entries[sKey]||{});e[field]=val;entries[sKey]=e;return {entries:entries,targets:Object.assign({},prev.targets)}});
   }
-  function setTarget(v){
-    setAntonella(function(prev){var t=Object.assign({},prev.targets);t[antonMonthKey]=v;return {entries:Object.assign({},prev.entries),targets:t}});
+  function setTargetForCurrentAndFuture(v){
+    var asNum=Number(v);
+    if(isNaN(asNum)||asNum<0)return;
+    setAntonella(function(prev){
+      var t=Object.assign({},prev.targets);
+      Object.keys(t).forEach(function(k){
+        var n=monthKeyNum(k);
+        if(n!==null&&selectedMonthNum!==null&&n>=selectedMonthNum)delete t[k];
+      });
+      if(selectedMonthNum!==null){
+        t[antonMonthKey]=String(asNum);
+      }
+      return {entries:Object.assign({},prev.entries),targets:t};
+    });
+    setATargetEdit(false);
+    setATargetDraft("");
   }
   return ce("div",{className:"vp"},
     ce("div",{className:"acard"},
@@ -1144,7 +1204,21 @@ function antonellaView(){
       ce("div",{style:{fontSize:13,fontWeight:700,color:"#1E293B",marginTop:6}},"Ist an diesem Tag: "+(dayWorkedMinutes(cur)/60).toFixed(2)+" h")),
     ce("div",{className:"acard"},
       ce("div",{className:"atitle"},"📈 Monatsübersicht"),
-      ce("div",{className:"arow"},ce("div",{className:"fg",style:{flex:1,marginBottom:0}},ce("label",{className:"fl"},"Soll-Stunden (Monat)"),ce("input",{className:"fi",type:"number",min:"0",step:"0.25",value:antonella.targets[antonMonthKey]||"",placeholder:"z. B. 120",onChange:function(e){setTarget(e.target.value)}}))),
+      ce("div",{className:"arow"},
+        ce("div",{className:"fg",style:{flex:1,marginBottom:0}},
+          ce("label",{className:"fl",style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
+            ce("span",null,"Soll-Stunden (Monat)"),
+            canEditMonthTarget?ce("button",{className:"md-x",style:{width:26,height:26,fontSize:12},onClick:function(){
+              setATargetEdit(function(v){return !v});
+              setATargetDraft(String((antonEffectiveTarget.get(antonMonthKey)||0)));
+            }},"✏️"):null),
+          aTargetEdit&&canEditMonthTarget?ce("div",{style:{display:"flex",gap:6}},
+            ce("input",{className:"fi",type:"number",min:"0",step:"0.25",value:aTargetDraft,placeholder:"z. B. 120",onChange:function(e){setATargetDraft(e.target.value)}}),
+            ce("button",{className:"la",onClick:function(){setTargetForCurrentAndFuture(aTargetDraft)}},"OK")):
+            ce("div",{className:"fi",style:{display:"flex",alignItems:"center",background:"#F8FAFC",fontWeight:700}},
+              (antonMonthStats.target||0).toFixed(2)+" h"
+            ))),
+      !canEditMonthTarget?ce("div",{style:{fontSize:11,color:"#94A3B8",marginTop:6}},"Soll-Stunden in vergangenen Monaten bleiben unverändert."):null,
       ce("div",{style:{fontSize:13,color:"#334155",marginTop:4}},"Ist: "+antonMonthStats.hours.toFixed(2)+" h · Soll: "+antonMonthStats.target.toFixed(2)+" h"),
       ce("div",{style:{fontSize:14,fontWeight:800,color:antonMonthStats.diff>=0?"#059669":"#DC2626",marginTop:8}},"Differenz: "+(antonMonthStats.diff>=0?"+":"")+antonMonthStats.diff.toFixed(2)+" h"))
   );
