@@ -967,27 +967,22 @@ function chatView(){
   // Thread list
   var threads=[];
   Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m)||!m.length)return;var tid=k;var task=tid===GENERAL_THREAD_ID?{x:"Allgemein"}:tMap[tid];if(!task)return;var cat=tid===GENERAL_THREAD_ID?{i:"💭",t:"Allgemein"}:cMap[task.ct];var rd=rdM[k]||0;var unread=0;for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)unread++}threads.push({key:k,tid:tid,task:task,cat:cat,unread:unread,last:m[m.length-1],cnt:m.length})});
+  if(!threads.some(function(th){return th.key===GENERAL_THREAD_ID})){
+    threads.unshift({key:GENERAL_THREAD_ID,tid:GENERAL_THREAD_ID,task:{x:"Allgemein"},cat:{i:"💭",t:"Allgemein"},unread:0,last:null,cnt:0});
+  }
   threads.sort(function(a,b){return mts(b.last)-mts(a.last)});
   return ce("div",{className:"vp"},
     ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B",marginBottom:4}},"💬 Alle Kommentare"),
     ce("button",{className:"la",style:{marginBottom:10,width:"100%"},onClick:function(){
-      if(!msgs[GENERAL_THREAD_ID]){
-        setMsgs(function(p){
-          var n=Object.assign({},p);
-          n[GENERAL_THREAD_ID]=[];
-          db.collection("v2").doc("msgs").set(n);
-          return n;
-        });
-      }
       setChatThread(GENERAL_THREAD_ID);
     }},
       "＋ Allgemeines Thema starten"),
     ce("div",{style:{fontSize:11,color:"#94A3B8",marginBottom:14}},threads.length+" Konversationen"+(uCnt>0?" · "+uCnt+" ungelesen":"")),
     threads.length===0?ce("div",{style:{textAlign:"center",padding:40,color:"#94A3B8",fontSize:13}},"Noch keine Kommentare. Tippe bei einer Aufgabe auf den Text, um Kommentare zu schreiben."):null,
     threads.map(function(th){
-      var ld=new Date(mts(th.last));var td=new Date();var isTd=ld.toDateString()===td.toDateString();
-      var yd=new Date(td);yd.setDate(td.getDate()-1);var isYd=ld.toDateString()===yd.toDateString();
-      var timeStr=isTd?ld.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):isYd?"Gestern":ld.toLocaleDateString("de-DE",{day:"numeric",month:"short"});
+      var ld=th.last?new Date(mts(th.last)):null;var td=new Date();var isTd=ld?ld.toDateString()===td.toDateString():false;
+      var yd=new Date(td);yd.setDate(td.getDate()-1);var isYd=ld?ld.toDateString()===yd.toDateString():false;
+      var timeStr=ld?(isTd?ld.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):isYd?"Gestern":ld.toLocaleDateString("de-DE",{day:"numeric",month:"short"})):"Neu";
       return ce(Swipe,{key:th.key,mb:4,radius:10,
         leftText:"🗑 Alle löschen",leftColor:"#FEE2E2",leftTxtColor:"#DC2626",
         rightText:"● Ungelesen",rightColor:"#DBEAFE",rightTxtColor:"#2563EB",
@@ -998,7 +993,7 @@ function chatView(){
           ce("span",{style:{fontSize:17}},th.cat?th.cat.i:""),
           ce("div",{style:{flex:1,minWidth:0}},
             ce("div",{style:{fontSize:14,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},th.task.x),
-            ce("div",{style:{fontSize:12,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},P[mfr(th.last)]+": "+mtx(th.last))),
+            ce("div",{style:{fontSize:12,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},th.last?(P[mfr(th.last)]+": "+mtx(th.last)):"Noch keine Nachrichten")),
           ce("div",{style:{textAlign:"right",flexShrink:0}},
             th.unread>0?ce("span",{className:"ubg"},th.unread):null,
             ce("div",{style:{fontSize:10,color:"#94A3B8",marginTop:2}},timeStr))))}));}
