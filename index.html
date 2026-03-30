@@ -699,10 +699,6 @@ function TC(pr){
     setMod({type:"edit"});
   }
   function onCardClick(){
-    if(pr.mode==="today"&&t.kind==="mental"){
-      setExp(function(prev){return prev===t.id?null:t.id});
-      return;
-    }
     openEdit();
   }
   var expNode=null;
