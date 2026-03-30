@@ -1002,7 +1002,7 @@ function todayView(){
       filt(mentalTodayTasks).map(function(t){return ce(MLCard,t);})
     ),
     ce("div",{className:"mlc"},ce("div",{className:"ml-t"},"⚖️ Balance"),
-      ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["NATA","#BE185D"]].map(function(x){var s=sts.pp[x[0]]||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
+      ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["NATA","#BE185D"]].map(function(x){var s=(sts.pp&&sts.pp[x[0]])||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
 function extraView(){
   function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp})}
   var tasks=filt(extraT);
