@@ -688,6 +688,11 @@ function taskLoadWeight(task){
   var map={daily:8,weekly:4,bimonthly:2.5,monthly:2,quarterly:1,yearly:0.5,asneeded:1.5,ongoing:3,once:2,setup:2};
   return map[freq]||1;
 }
+function fmtLoadCalc(task){
+  var freq=task&&task.f?task.f:"asneeded";
+  var label=FL[freq]||freq;
+  return label+" = "+taskLoadWeight(task);
+}
 var mentalBalance=um(function(){
   var byCat={};
   extraT.forEach(function(t){
@@ -712,7 +717,11 @@ var mentalBalance=um(function(){
   var totalN=rows.reduce(function(sum,r){return sum+r.n},0);
   var totalLoadS=rows.reduce(function(sum,r){return sum+r.loadS},0);
   var totalLoadN=rows.reduce(function(sum,r){return sum+r.loadN},0);
-  return {rows:rows,totalS:totalS,totalN:totalN,totalLoadS:totalLoadS,totalLoadN:totalLoadN,overall:score(totalLoadS,totalLoadN)};
+  var leadOwner=totalLoadS===totalLoadN?"Gleichstand":(totalLoadS>totalLoadN?"Sander":"Nata");
+  return {
+    rows:rows,totalS:totalS,totalN:totalN,totalLoadS:totalLoadS,totalLoadN:totalLoadN,overall:score(totalLoadS,totalLoadN),
+    leadOwner:leadOwner,leadLoadDiff:Math.abs(totalLoadS-totalLoadN),leadTaskDiff:Math.abs(totalS-totalN)
+  };
 },[extraT,cMap]);
 var gameStats=um(function(){
   var ownTasks=dayT.filter(function(t){return t.owner===cu;}).concat(mentalQuickTodayTasks.filter(function(t){return t.owner===cu;}));
@@ -1222,15 +1231,20 @@ function gamificationView(){
       ce("div",{className:"atitle"},"⚖️ Mental-Load-Verteilung"),
       ce("div",{className:"bal-row"},
         ce("div",{className:"bal-name"},"Gesamt"),
-        ce("div",{className:"bal-score"},mentalBalance.overall+"% ausgeglichen · Aufgaben "+mentalBalance.totalS+" / "+mentalBalance.totalN+" · Load "+mentalBalance.totalLoadS.toFixed(1)+" / "+mentalBalance.totalLoadN.toFixed(1))),
+        ce("div",{className:"bal-score"},mentalBalance.overall+"% ausgeglichen · Aufgaben Sander "+mentalBalance.totalS+" / Nata "+mentalBalance.totalN+" · Load Sander "+mentalBalance.totalLoadS.toFixed(1)+" / Nata "+mentalBalance.totalLoadN.toFixed(1))),
       ce("div",{style:{fontSize:11,color:"#64748B",marginTop:4}},"% zeigt, wie fair der mentale Load verteilt ist (frequenz-gewichtet; 100% = gleich verteilt)."),
+      ce("div",{style:{fontSize:12,fontWeight:700,color:"#0F766E",marginTop:6}},
+        mentalBalance.leadOwner==="Gleichstand"
+          ?"Aktuell gleich verteilt: kein Überhang bei Sander/Nata."
+          :"Aktuell höherer Mental Load bei "+mentalBalance.leadOwner+" (+"+mentalBalance.leadLoadDiff.toFixed(1)+" Load, +"+mentalBalance.leadTaskDiff+" Aufgaben)."
+      ),
       ce("div",{className:"bal-help"},
-        "Hier zählen nur Aufgaben vom Typ „Mental Load“ mit Zuordnung zu Sander/Nata. Routine-Aufgaben zählen nicht in die Balance, aber sie zählen bei „Erledigt im Monat“ und damit zu Punkten."
+        "Rechnung: Pro Mental-Load-Aufgabe zählt ein Frequenz-Gewicht (z. B. "+fmtLoadCalc({f:"daily"})+", "+fmtLoadCalc({f:"weekly"})+", "+fmtLoadCalc({f:"monthly"})+", "+fmtLoadCalc({f:"asneeded"})+"). Hier zählen nur Aufgaben vom Typ „Mental Load“ mit Zuordnung zu Sander/Nata. Routine-Aufgaben zählen nicht in die Balance, aber sie zählen bei „Erledigt im Monat“ und damit zu Punkten."
       ),
       mentalBalance.rows.map(function(r){
         return ce("div",{key:r.id,className:"bal-row"},
           ce("div",{className:"bal-name"},(r.cat?r.cat.i+" ":"")+ (r.cat?r.cat.t:r.id)),
-          ce("div",{className:"bal-score"},r.balance+"% · Aufgaben "+r.s+" / "+r.n+" · Load "+r.loadS.toFixed(1)+" / "+r.loadN.toFixed(1)));
+          ce("div",{className:"bal-score"},r.balance+"% · Aufgaben Sander "+r.s+" / Nata "+r.n+" · Load Sander "+r.loadS.toFixed(1)+" / Nata "+r.loadN.toFixed(1)));
       })
     ),
     ce("div",{className:"praise-card"},
