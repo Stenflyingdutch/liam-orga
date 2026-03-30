@@ -51,17 +51,21 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 .gc{background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .gc-t{font-size:22px;font-weight:800;color:#1E293B}.gc-s{font-size:13px;color:#64748B;margin:3px 0 8px}
 /* Gamification */
-.gfc{background:linear-gradient(135deg,#0F172A,#1E293B);border-radius:14px;padding:14px 15px;margin-bottom:12px;color:#fff;box-shadow:0 6px 20px rgba(15,23,42,.24)}
+.gfc{background:linear-gradient(160deg,#F8FBFF,#ECF4FF 60%,#E0ECFF);border:1px solid #C7DBFF;border-radius:14px;padding:14px 15px;margin-bottom:12px;color:#0F172A;box-shadow:0 8px 20px rgba(37,99,235,.12)}
 .gfh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.gft{font-size:14px;font-weight:700}.gfp{font-size:12px;color:#BFDBFE;font-weight:700}
+.gft{font-size:14px;font-weight:800}.gfp{font-size:12px;color:#1D4ED8;font-weight:800;background:#DBEAFE;border-radius:999px;padding:4px 8px}
 .gfgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.gfstat{background:rgba(255,255,255,.08);border:1px solid rgba(148,163,184,.25);border-radius:10px;padding:8px;text-align:center}
-.gfnum{font-size:19px;font-weight:800}.gflb{font-size:10px;color:#CBD5E1;font-weight:600}
-.gfbar{height:7px;background:rgba(148,163,184,.28);border-radius:999px;overflow:hidden;margin:6px 0 5px}
+.gfstat{background:#fff;border:1px solid #BFDBFE;border-radius:10px;padding:8px;text-align:center}
+.gfnum{font-size:19px;font-weight:800}.gflb{font-size:10px;color:#64748B;font-weight:700}
+.gfbar{height:8px;background:#DBEAFE;border-radius:999px;overflow:hidden;margin:6px 0 8px}
 .gffill{height:100%;background:linear-gradient(90deg,#60A5FA,#22D3EE)}
 .gfb{display:flex;gap:6px;flex-wrap:wrap}
-.gfbd{font-size:10px;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(191,219,254,.4)}
-.gflink{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(191,219,254,.5);background:rgba(255,255,255,.08);color:#DBEAFE;font-size:12px;font-weight:700}
+.gfbd{font-size:10px;padding:3px 8px;border-radius:999px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A}
+.gflink{width:100%;padding:10px;border-radius:10px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:700}
+.ginfo{background:#fff;border:1px solid #DBEAFE;border-radius:12px;padding:10px;margin-top:10px}
+.ginfo-h{font-size:12px;font-weight:800;color:#1E3A8A;margin-bottom:6px}
+.ginfo-l{font-size:11px;color:#334155;line-height:1.45;margin:3px 0}
+.ginfo-strong{font-weight:700;color:#1E293B}
 .praise-card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
 .praise-row{display:flex;gap:8px;align-items:center;margin-top:8px}
 .praise-btn{padding:10px 12px;border-radius:10px;border:1px solid #E5E7EB;background:#fff;font-size:13px;font-weight:700}
@@ -71,6 +75,7 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 .bal-row:last-child{border-bottom:none}
 .bal-name{font-size:13px;font-weight:600;color:#1E293B}
 .bal-score{font-size:12px;font-weight:700;color:#0F766E}
+.bal-help{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:9px 10px;margin-top:8px;font-size:11px;color:#475569;line-height:1.45}
 /* New messages banner */
 .banner{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;cursor:pointer}
 .banner:active{background:#DBEAFE}
@@ -712,7 +717,10 @@ var mentalBalance=um(function(){
 var gameStats=um(function(){
   var ownTasks=dayT.filter(function(t){return t.owner===cu;}).concat(mentalQuickTodayTasks.filter(function(t){return t.owner===cu;}));
   var ownDone=ownTasks.filter(function(t){return isD(t.id,t.f,sDay);}).length;
+  var taskById={};tl.forEach(function(t){taskById[t.id]=t;});
   var doneByDay={};
+  var monthRoutineDone=0;
+  var monthMentalDone=0;
   Object.keys(ts).forEach(function(k){
     if(!ts[k])return;
     var m=String(k).match(/^(.*)_([0-9]{4}-[0-9]{2}-[0-9]{2})$/);
@@ -721,6 +729,11 @@ var gameStats=um(function(){
     if(!dayDate)return;
     if(gOw(tid,dayDate)!==cu)return;
     doneByDay[dayStr]=(doneByDay[dayStr]||0)+1;
+    if(dayStr.indexOf(ymk(new Date()))===0){
+      var task=taskById[tid];
+      if(task&&task.kind==="mental")monthMentalDone++;
+      else monthRoutineDone++;
+    }
   });
   var streak=0;
   for(var i=0;i<60;i++){
@@ -744,8 +757,8 @@ var gameStats=um(function(){
   if(praiseForMe>0)badges.push("👏 "+praiseForMe+"x gelobt");
   if(mentalBalance.overall>=80)badges.push("⚖️ Mental Load sehr fair");
   if(!badges.length)badges.push("🎯 Erledige 1 Aufgabe für dein erstes Badge");
-  return {ownTasks:ownTasks,ownDone:ownDone,streak:streak,monthDone:monthDone,points:points,level:level,levelGoal:levelGoal,levelProg:levelProg,badges:badges,praiseForMe:praiseForMe,balanceBonus:balanceBonus};
-},[dayT,mentalQuickTodayTasks,cu,isD,sDay,ts,gOw,praise,mentalBalance]);
+  return {ownTasks:ownTasks,ownDone:ownDone,streak:streak,monthDone:monthDone,monthRoutineDone:monthRoutineDone,monthMentalDone:monthMentalDone,points:points,level:level,levelGoal:levelGoal,levelProg:levelProg,badges:badges,praiseForMe:praiseForMe,balanceBonus:balanceBonus};
+},[dayT,mentalQuickTodayTasks,cu,isD,sDay,ts,gOw,praise,mentalBalance,tl]);
 function addPraise(msgText){
   if(cu!=="SANDER"&&cu!=="NATA")return;
   var target=flipOw(cu);
@@ -1184,18 +1197,25 @@ function gamificationView(){
   var target=flipOw(cu);
   var recentPraise=praise.slice().sort(function(a,b){return (b.ts||0)-(a.ts||0)}).slice(0,5);
   var levelPercent=Math.round(gameStats.levelProg/gameStats.levelGoal*100);
+  var monthName=sDay.toLocaleString("de-DE",{month:"long"});
   return ce("div",{className:"vp"},
     ce("div",{className:"gfc"},
       ce("div",{className:"gfh"},ce("div",{className:"gft"},"🏆 Awards & Fortschritt"),ce("div",{className:"gfp"},"Level "+gameStats.level)),
       ce("div",{className:"gfgrid"},
         ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.points),ce("div",{className:"gflb"},"Punkte")),
-        ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.streak),ce("div",{className:"gflb"},"Streak")),
-        ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.monthDone),ce("div",{className:"gflb"},"Diesen Monat"))
+        ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.streak),ce("div",{className:"gflb"},"Streak-Tage")),
+        ce("div",{className:"gfstat"},ce("div",{className:"gfnum"},gameStats.monthDone),ce("div",{className:"gflb"},"Erledigt im "+monthName))
       ),
-      ce("div",{style:{fontSize:11,color:"#BFDBFE"}},"Fortschritt bis Level "+(gameStats.level+1)+" · "+levelPercent+"%"),
+      ce("div",{style:{fontSize:11,color:"#1E40AF",fontWeight:700}},"Fortschritt bis Level "+(gameStats.level+1)+" · "+levelPercent+"%"),
       ce("div",{className:"gfbar"},ce("div",{className:"gffill",style:{width:Math.max(6,Math.round(gameStats.levelProg/gameStats.levelGoal*100))+"%"}})),
-      ce("div",{style:{fontSize:11,color:"#BFDBFE",lineHeight:1.4}},
-        "Punkte = erledigte Aufgaben im Monat (x12) + Serien-Tage (x8) + erhaltenes Lob (x20) + Mental-Load-Balance (bis +40)."),
+      ce("div",{className:"ginfo"},
+        ce("div",{className:"ginfo-h"},"So sammelst du Punkte"),
+        ce("div",{className:"ginfo-l"},ce("span",{className:"ginfo-strong"},"Erledigt im "+monthName+": "),gameStats.monthDone+" Aufgaben (Routine "+gameStats.monthRoutineDone+" + Mental Load "+gameStats.monthMentalDone+") ×12"),
+        ce("div",{className:"ginfo-l"},ce("span",{className:"ginfo-strong"},"Streak: "),gameStats.streak+" Tage hintereinander mit mindestens 1 erledigten Aufgabe ×8"),
+        ce("div",{className:"ginfo-l"},ce("span",{className:"ginfo-strong"},"Lob erhalten: "),gameStats.praiseForMe+" ×20 Punkte"),
+        ce("div",{className:"ginfo-l"},ce("span",{className:"ginfo-strong"},"Balance-Bonus: "),"+"+gameStats.balanceBonus+" (max. +40 aus Mental-Load-Fairness)"),
+        ce("div",{className:"ginfo-l"},"Level-Up alle 140 Punkte.")
+      ),
       ce("div",{className:"gfb"},gameStats.badges.map(function(b){return ce("span",{key:b,className:"gfbd"},b)}))
     ),
     ce("div",{className:"praise-card"},
@@ -1203,7 +1223,10 @@ function gamificationView(){
       ce("div",{className:"bal-row"},
         ce("div",{className:"bal-name"},"Gesamt"),
         ce("div",{className:"bal-score"},mentalBalance.overall+"% ausgeglichen · Aufgaben "+mentalBalance.totalS+" / "+mentalBalance.totalN+" · Load "+mentalBalance.totalLoadS.toFixed(1)+" / "+mentalBalance.totalLoadN.toFixed(1))),
-      ce("div",{style:{fontSize:11,color:"#64748B",marginTop:4}},"% zeigt, wie fair der mentale Load verteilt ist (Frequenz-gewichtet; 100% = gleich verteilt)."),
+      ce("div",{style:{fontSize:11,color:"#64748B",marginTop:4}},"% zeigt, wie fair der mentale Load verteilt ist (frequenz-gewichtet; 100% = gleich verteilt)."),
+      ce("div",{className:"bal-help"},
+        "Hier zählen nur Aufgaben vom Typ „Mental Load“ mit Zuordnung zu Sander/Nata. Routine-Aufgaben zählen nicht in die Balance, aber sie zählen bei „Erledigt im Monat“ und damit zu Punkten."
+      ),
       mentalBalance.rows.map(function(r){
         return ce("div",{key:r.id,className:"bal-row"},
           ce("div",{className:"bal-name"},(r.cat?r.cat.i+" ":"")+ (r.cat?r.cat.t:r.id)),
