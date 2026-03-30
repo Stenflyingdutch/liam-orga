@@ -472,19 +472,30 @@ var days=um(function(){return g7(wOff)},[wOff]);
 // Firebase sync
 ue(function(){
   var u=[];
-  u.push(db.collection("v2").doc("ts").onSnapshot(function(d){if(d.exists){fromServer.current++;setTs(d.data());setTimeout(function(){fromServer.current--},500)}setLd(true)}));
-  u.push(db.collection("v2").doc("tl").onSnapshot(function(d){if(d.exists&&d.data().l){fromServer.current++;var safeList=Array.isArray(d.data().l)?d.data().l.filter(function(x){return x&&typeof x==="object"}).map(normTask):[];setTl(safeList);setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("dOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setDOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("bOw").onSnapshot(function(d){if(d.exists){fromServer.current++;setBOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("msgs").onSnapshot(function(d){if(d.exists){fromServer.current++;setMsgs(normalizeMsgStore(d.data()));setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("rDone").onSnapshot(function(d){if(d.exists){fromServer.current++;setRDone(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("tOrd").onSnapshot(function(d){if(d.exists&&d.data().o){fromServer.current++;setTOrd(d.data().o);setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("wPlan").onSnapshot(function(d){if(d.exists){fromServer.current++;setWPlan(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("mlQuick").onSnapshot(function(d){if(d.exists){fromServer.current++;setMlQuick(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("praise").onSnapshot(function(d){if(d.exists){fromServer.current++;var data=d.data()||{};setPraise(Array.isArray(data.items)?data.items:[]);setTimeout(function(){fromServer.current--},500)}}));
-  u.push(db.collection("v2").doc("antonella").onSnapshot(function(d){if(d.exists){fromServer.current++;var data=d.data()||{};setAntonella({entries:data.entries||{},targets:data.targets||{}});setTimeout(function(){fromServer.current--},500)}}));
+  function markLoaded(){setLd(true)}
+  function subDoc(doc,onData){
+    return db.collection("v2").doc(doc).onSnapshot(function(d){
+      markLoaded();
+      onData(d);
+    },function(e){
+      console.warn("snapshot failed",doc,e);
+      markLoaded();
+    });
+  }
+  var loadFallback=setTimeout(markLoaded,2500);
+  u.push(subDoc("ts",function(d){if(d.exists){fromServer.current++;setTs(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("tl",function(d){if(d.exists&&d.data().l){fromServer.current++;var safeList=Array.isArray(d.data().l)?d.data().l.filter(function(x){return x&&typeof x==="object"}).map(normTask):[];setTl(safeList);setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("dOw",function(d){if(d.exists){fromServer.current++;setDOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("bOw",function(d){if(d.exists){fromServer.current++;setBOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("msgs",function(d){if(d.exists){fromServer.current++;setMsgs(normalizeMsgStore(d.data()));setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("rDone",function(d){if(d.exists){fromServer.current++;setRDone(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("tOrd",function(d){if(d.exists&&d.data().o){fromServer.current++;setTOrd(d.data().o);setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("wPlan",function(d){if(d.exists){fromServer.current++;setWPlan(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("mlQuick",function(d){if(d.exists){fromServer.current++;setMlQuick(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("praise",function(d){if(d.exists){fromServer.current++;var data=d.data()||{};setPraise(Array.isArray(data.items)?data.items:[]);setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("antonella",function(d){if(d.exists){fromServer.current++;var data=d.data()||{};setAntonella({entries:data.entries||{},targets:data.targets||{}});setTimeout(function(){fromServer.current--},500)}}));
   window.addEventListener("online",function(){setOnl(true)});window.addEventListener("offline",function(){setOnl(false)});
-  return function(){u.forEach(function(x){x()})};
+  return function(){clearTimeout(loadFallback);u.forEach(function(x){x()})};
 },[]);
 ue(function(){var i={};var c=false;tl.forEach(function(t){if(!bOw[t.id]){i[t.id]=t.o;c=true}});if(c)setBOw(function(p){return Object.assign({},i,p)})},[tl]);
 // Save functions - skip only if change came from server
