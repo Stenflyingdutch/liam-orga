@@ -787,6 +787,7 @@ function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(
 function MLCard(t){
   var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
   var threadKey=mkKey(t.id,sDay);var unread=unreadFor(t.id,sDay);var msgCount=(msgs[threadKey]||[]).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])}).length;
+  var isQuickActive=mlQuick[t.id]===ow;
   return ce("div",{key:t.id,className:"li"},
     ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
       ce("div",{className:"li-t"},t.x),
@@ -798,6 +799,10 @@ function MLCard(t){
       )
     ),
     ce("div",{style:{display:"flex",gap:4}},
+      !isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(){
+        setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]=ow;return n});
+        setTs(function(prev){var n=Object.assign({},prev);delete n[ckKey(t.id,"asneeded",sDay)];return n});
+      }},"＋"):null,
       ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(threadKey);if(unread>0)mkRd(threadKey)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null))
   );
 }
