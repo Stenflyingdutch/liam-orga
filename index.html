@@ -449,6 +449,7 @@ ue(function(){
 },[tl,mlTermState,ts]);
 ue(function(){lsSet("lr2",JSON.stringify(rdM))},[rdM]);
 ue(function(){lsSet("lf",fp)},[fp]);
+ue(function(){if(cu==="ANTONELLA"&&vw!=="antonella")setVw("antonella")},[cu,vw]);
 var gOw=uc(function(tid,date){
   var task=tl.find(function(t){return t.id===tid})||{};
   // 1. Day-specific override
@@ -1002,7 +1003,7 @@ function todayView(){
       filt(mentalTodayTasks).map(function(t){return ce(MLCard,t);})
     ),
     ce("div",{className:"mlc"},ce("div",{className:"ml-t"},"⚖️ Balance"),
-      ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["NATA","#BE185D"]].map(function(x){var s=sts.pp[x[0]]||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
+      ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["NATA","#BE185D"]].map(function(x){var s=(sts.pp&&sts.pp[x[0]])||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
 function extraView(){
   function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp})}
   var tasks=filt(extraT);
@@ -1472,7 +1473,6 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
       ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
 var navI=cu==="ANTONELLA"?[{id:"antonella",i:"🕒",l:"Antonella"}]:[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental Load"},{id:"chat",i:"💬",l:"Chat"},{id:"antonella",i:"🕒",l:"Antonella"},{id:"chk",i:"⚖️",l:"Check-in"}];
-ue(function(){if(cu==="ANTONELLA"&&vw!=="antonella")setVw("antonella")},[cu,vw]);
 return ce("div",{className:"app"},
   ce("div",{className:"hdr"},ce("div",{className:"hdr-l"},ce("span",{style:{fontSize:22}},"👶"),ce("div",null,ce("div",{className:"hdr-t"},"Liam Orga"),ce("div",{className:"hdr-d"},new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})))),ce("div",{className:"hdr-r"},ce("div",{className:"sdot "+(onl?"on":"off")}),ce("div",{className:"hdr-s"},sts.dn+"/"+sts.tot+" ✓"))),
   ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="antonella"?antonellaView():null,vw==="extra"?extraView():null,vw==="chat"?chatView():null,vw==="lib"?routineView():null,vw==="chk"?chkView():null),
