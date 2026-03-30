@@ -1260,7 +1260,7 @@ function gamificationView(){
       mentalBalance.rows.map(function(r){
         return ce("div",{key:r.id,className:"bal-row"},
           ce("div",{className:"bal-name"},(r.cat?r.cat.i+" ":"")+ (r.cat?r.cat.t:r.id)),
-          ce("div",{className:"bal-score"},r.balance+"% · Aufgaben Sander "+r.s+" / Nata "+r.n);
+          ce("div",{className:"bal-score"},r.balance+"% · Aufgaben Sander "+r.s+" / Nata "+r.n));
       })
     ),
     ce("div",{className:"praise-card"},
