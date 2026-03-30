@@ -286,6 +286,25 @@ function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<
 function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function lsGet(key,fallback){try{var v=localStorage.getItem(key);return v===null||v===undefined?fallback:v}catch(e){return fallback}}
 function lsSet(key,value){try{localStorage.setItem(key,value);return true}catch(e){return false}}
+function rdmStorageKey(user){return "lr2_"+(user||"guest")}
+function readRdMFromStorage(user){
+  try{
+    var key=rdmStorageKey(user);
+    var raw=lsGet(key,null);
+    if(raw){
+      var parsed=JSON.parse(raw);
+      if(parsed&&typeof parsed==="object")return parsed;
+    }
+    if(user){
+      var legacy=lsGet("lr2",null);
+      if(legacy){
+        var oldParsed=JSON.parse(legacy);
+        if(oldParsed&&typeof oldParsed==="object")return oldParsed;
+      }
+    }
+  }catch(e){}
+  return {};
+}
 function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
 function safeDate(ts){var d=new Date(ts);return isNaN(d.getTime())?null:d}
 function g7(off){var r=[];var b=sw(new Date());b.setDate(b.getDate()+off*7);for(var i=0;i<7;i++){var d=new Date(b);d.setDate(b.getDate()+i);r.push(d)}return r}
@@ -355,7 +374,7 @@ var _dOw=us({}),dOw=_dOw[0],setDOw=_dOw[1];
 var _bOw=us({}),bOw=_bOw[0],setBOw=_bOw[1];
 var _msgs=us({}),msgs=_msgs[0],setMsgs=_msgs[1];
 var _rDone=us({}),rDone=_rDone[0],setRDone=_rDone[1];
-var _rdM=us(function(){try{return JSON.parse(lsGet("lr2","{}")||"{}")}catch(e){return{}}}),rdM=_rdM[0],setRdM=_rdM[1];
+var _rdM=us(function(){return readRdMFromStorage(lsGet("lu2",null)||null)}),rdM=_rdM[0],setRdM=_rdM[1];
 var _sDay=us(new Date()),sDay=_sDay[0],setSDay=_sDay[1];
 var _wOff=us(0),wOff=_wOff[0],setWOff=_wOff[1];
 var _fp=us(function(){return lsGet("lf","ALL")||"ALL"}),fp=_fp[0],setFp=_fp[1];
@@ -467,7 +486,8 @@ ue(function(){
   }else if(keysA.length!==keysB.length){changed=true;}
   if(changed)setMlTermState(nextState);
 },[tl,mlTermState,ts]);
-ue(function(){lsSet("lr2",JSON.stringify(rdM))},[rdM]);
+ue(function(){setRdM(readRdMFromStorage(cu))},[cu]);
+ue(function(){lsSet(rdmStorageKey(cu),JSON.stringify(rdM))},[rdM,cu]);
 ue(function(){lsSet("lf",fp)},[fp]);
 ue(function(){if(cu==="ANTONELLA"&&vw!=="antonella")setVw("antonella")},[cu,vw]);
 var gOw=uc(function(tid,date){
