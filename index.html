@@ -64,6 +64,10 @@ input,button,select,textarea{font-family:inherit}button{cursor:pointer;-webkit-a
 .tc-c{flex:1;min-width:0;cursor:pointer}
 .tc-t{font-size:15px;font-weight:500;color:#1E293B;line-height:1.3}
 .tc-sub{display:flex;gap:5px;margin-top:4px;align-items:center}
+.tc-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.cbtn{border:none;background:#F8FAFC;border-radius:999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#64748B;position:relative}
+.cbtn:active{background:#E2E8F0}
+.cbtn .ubg{position:absolute;top:-3px;right:-3px}
 .bg{border-radius:5px;font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px}
 .own-link{border:none;background:none;padding:0;font-size:12px;font-weight:600;cursor:pointer}
 .tc-dot{width:10px;height:10px;border-radius:5px;flex-shrink:0}
@@ -259,6 +263,7 @@ function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).sli
 function fmtT(ts){if(!ts)return"";return new Date(ts).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
 function g7(off){var r=[];var b=sw(new Date());b.setDate(b.getDate()+off*7);for(var i=0;i<7;i++){var d=new Date(b);d.setDate(b.getDate()+i);r.push(d)}return r}
 function mkKey(tid,date){return tid}
+var GENERAL_THREAD_ID="__general__";
 function mkReminderId(tid,ds){return tid+"__rem__"+ds}
 function getReminderDate(t){
   if(!t)return"";
@@ -304,6 +309,7 @@ var _srch=us(""),srch=_srch[0],setSrch=_srch[1];
 var _libCol=us({}),libCol=_libCol[0],setLibCol=_libCol[1]; // {catId: true} = collapsed
 var _fd=us({}),fd=_fd[0],setFd=_fd[1];
 var _exp=us(null),exp=_exp[0],setExp=_exp[1];
+var _commentOpen=us({}),commentOpen=_commentOpen[0],setCommentOpen=_commentOpen[1];
 var _chatThread=us(null),chatThread=_chatThread[0],setChatThread=_chatThread[1];
 var _secCol=us({}),secCol=_secCol[0],setSecCol=_secCol[1];
 var _qaText=us(""),qaText=_qaText[0],setQaText=_qaText[1];
@@ -356,14 +362,8 @@ ue(function(){
   });
   if(Object.keys(changedIds).length){
     changed=true;
-    var deletedIds={};
-    tl.forEach(function(t){
-      if(!changedIds[t.id])return;
-      if(!ts[t.id+"_cur"])deletedIds[t.id]=true;
-    });
     setTl(function(list){return list.reduce(function(acc,t){
       if(!changedIds[t.id]){acc.push(t);return acc}
-      if(deletedIds[t.id])return acc;
       acc.push(Object.assign({},t,{reminderDate:"",reminders:[]}));
       return acc;
     },[])});
@@ -375,43 +375,6 @@ ue(function(){
       });
       return n;
     });
-    if(Object.keys(deletedIds).length){
-      setTs(function(prev){
-        var n=Object.assign({},prev);
-        Object.keys(n).forEach(function(k){
-          var tid=k.split("_")[0];
-          if(deletedIds[tid])delete n[k];
-        });
-        return n;
-      });
-      setBOw(function(prev){
-        var n=Object.assign({},prev);
-        Object.keys(deletedIds).forEach(function(id){delete n[id]});
-        return n;
-      });
-      setDOw(function(prev){
-        var n=Object.assign({},prev);
-        Object.keys(prev).forEach(function(k){
-          var tid=k.split("_")[0];
-          if(deletedIds[tid])delete n[k];
-        });
-        return n;
-      });
-      setWPlan(function(prev){
-        var n=Object.assign({},prev);
-        Object.keys(deletedIds).forEach(function(id){delete n[id]});
-        return n;
-      });
-      setMsgs(function(prev){
-        var n={};
-        Object.keys(prev).forEach(function(k){
-          var tid=k.split("_")[0];
-          if(!deletedIds[tid])n[k]=prev[k];
-        });
-        return n;
-      });
-      setTOrd(function(prev){return prev.filter(function(id){return !deletedIds[id]})});
-    }
   }
   var keysA=Object.keys(nextState),keysB=Object.keys(mlTermState);
   if(!changed&&keysA.length===keysB.length){
@@ -572,8 +535,8 @@ var mentalTodayTasks=um(function(){
     return gOw(t.id,sDay)===cu;
   }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay)})}).filter(function(t){return t.owner!=="NONE";});
 },[tl,cMap,gOw,sDay,cu]);
-function unreadFor(tid,date){var k=mkKey(tid,date);var m=msgs[k]||[];var rd=rdM[k]||0;var c=0;for(var i=rd;i<m.length;i++){if(mfr(m[i])!==cu)c++}return c}
-var uCnt=um(function(){var c=0;Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m))return;var rd=rdM[k]||0;for(var i=rd;i<m.length;i++){if(mfr(m[i])!==cu)c++}});return c},[msgs,rdM,cu]);
+function unreadFor(tid,date){var k=mkKey(tid,date);var m=msgs[k]||[];var rd=rdM[k]||0;var c=0;for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)c++}return c}
+var uCnt=um(function(){var c=0;Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m))return;var rd=rdM[k]||0;for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)c++}});return c},[msgs,rdM,cu]);
 // New messages for today banner
 var todayNewMsgs=um(function(){var r=[];dayT.forEach(function(t){var u=unreadFor(t.id,sDay);if(u>0)r.push({task:t,count:u})});return r},[dayT,msgs,rdM,sDay,cu]);
 var savT=function(data){
@@ -695,7 +658,8 @@ function TC(pr){
   var t=pr.t;var checkDate=chkDateForTask(t,sDay);var d=isD(t.id,t.f,checkDate);var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.SANDER;
   var canQuickAssign=t.kind==="routine"&&!t.isReminder;
   var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder);
-  var mk=mkKey(t.id,sDay);var mList=msgs[mk]||[];var ur2=unreadFor(t.id,sDay);
+  var mk=mkKey(t.id,sDay);var mList=(msgs[mk]||[]).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});var ur2=unreadFor(t.id,sDay);
+  var cOpen=!!commentOpen[mk];
   var isExp=pr.mode==="today"?false:exp===t.id;
   var isTodayMode=pr.mode==="today";
   function openEdit(){
@@ -709,10 +673,7 @@ function TC(pr){
     setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));
     setMod({type:"edit"});
   }
-  function onCardClick(){
-    if(ur2>0)mkRd(mk);
-    openEdit();
-  }
+  function onCardClick(){openEdit();}
   var expNode=null;
   if(isExp&&!t.isReminder&&isTodayMode){
     if(t.kind==="routine"){
@@ -763,8 +724,18 @@ function TC(pr){
           }},P[ow]):ce("span",{style:{fontSize:12,color:oc[1],fontWeight:600}},P[ow]),
           (t.dueDate||t.reminderDate)?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E"}},"📅 "+new Date((t.reminderDate||t.dueDate)+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null,
           pr.showCat&&t.cat?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},t.cat.i+" "+t.cat.t):null,
-          mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null))),
+          mList.length>0?ce("span",{style:{fontSize:11,color:"#94A3B8",marginLeft:4}},"💬"+mList.length):null),
+        ce("div",{className:"tc-actions"},
+          ce("button",{className:"cbtn",onClick:function(e){e.stopPropagation();setCommentOpen(function(prev){var n=Object.assign({},prev);n[mk]=!n[mk];if(!n[mk]&&ur2>0)mkRd(mk);return n;});if(ur2>0)mkRd(mk)}},
+            "💬",ur2>0?ce("span",{className:"ubg"},ur2):null)
+        ))),
     expNode,
+    cOpen?ce("div",{className:"cmt"},
+      mList.slice(-3).map(function(m,i){return ce("div",{key:i,className:"cmt-item "+(mfr(m)===cu?"cmt-mine":"cmt-theirs")},
+        ce("div",null,mtx(m)),
+        ce("div",{className:"cmt-info"},P[mfr(m)]+" · "+fmtT(mts(m))))}),
+      ce(MI,{cls:"cmt-input",ph:"Kommentar schreiben...",onSend:function(text){addM(mk,text);mkRd(mk)}})
+    ):null,
     // Preview last comment when collapsed
     !isExp&&mList.length>0?ce("div",{style:{marginTop:4,marginLeft:32,fontSize:11,color:ur2>0?"#1D4ED8":"#94A3B8",fontWeight:ur2>0?600:400,cursor:"pointer"},onClick:function(e){e.stopPropagation();setExp(t.id);mkRd(mk)}},
       "💬 "+P[mfr(mList[mList.length-1])]+": "+mtx(mList[mList.length-1]).slice(0,45)+(mtx(mList[mList.length-1]).length>45?"...":"")
@@ -899,13 +870,31 @@ function Swipe(props){
 function chatView(){
   if(chatThread){
     var tid=chatThread;
-    var t=tMap[tid];var cat=t?cMap[t.ct]:null;var mList=msgs[chatThread]||[];
+    var t=tMap[tid];var cat=t?cMap[t.ct]:null;var mList=(msgs[chatThread]||[]).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});
+    function deleteMsg(mode,idx){
+      if(mode==="all"){
+        setMsgs(function(p){var n=Object.assign({},p);var a=n[chatThread]?n[chatThread].slice():[];a.splice(idx,1);n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n});
+      }else{
+        setMsgs(function(p){
+          var n=Object.assign({},p);var a=n[chatThread]?n[chatThread].slice():[];var m=a[idx];
+          if(!m)return p;
+          m=Object.assign({},m,{hiddenFor:Object.assign({},m.hiddenFor||{},(function(){var o={};o[cu]=true;return o})())});
+          a[idx]=m;n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n;
+        });
+      }
+    }
     return ce("div",{style:{display:"flex",flexDirection:"column",height:"100%"}},
       ce("div",{className:"th"},ce("button",{className:"th-bk",onClick:function(){setChatThread(null)}},"←"),
         ce("div",{style:{flex:1}},ce("div",{style:{fontSize:13,fontWeight:700,color:"#1E293B"}},t?t.x:"?"),ce("div",{style:{fontSize:10,color:"#94A3B8"}},cat?cat.i+" "+cat.t:""))),
       ce("div",{className:"tmsgs"},
         mList.length===0?ce("div",{style:{textAlign:"center",padding:40,color:"#94A3B8",fontSize:14}},"Noch keine Nachrichten"):null,
         mList.map(function(m,i){
+          var pressTimer=null;
+          function showDeleteActions(){
+            var ch=prompt("Nachricht löschen:\n1 = Nur für mich\n2 = Für alle","1");
+            if(ch==="1")deleteMsg("me",i);
+            if(ch==="2")deleteMsg("all",i);
+          }
           var mDate=new Date(mts(m));var prevDate=i>0?new Date(mts(mList[i-1])):null;
           var showDate=!prevDate||mDate.toDateString()!==prevDate.toDateString();
           var today=new Date();var isToday=mDate.toDateString()===today.toDateString();
@@ -917,19 +906,25 @@ function chatView(){
             ce(Swipe,{mt:8,
               leftText:"🗑 Löschen",leftColor:"#FEE2E2",leftTxtColor:"#DC2626",
               rightText:"● Ungelesen",rightColor:"#DBEAFE",rightTxtColor:"#2563EB",
-              onLeft:function(){var ii=i;setMsgs(function(p){var n=Object.assign({},p);var a=n[chatThread]?n[chatThread].slice():[];a.splice(ii,1);n[chatThread]=a;db.collection("v2").doc("msgs").set(n);return n})},
+              onLeft:function(){deleteMsg("all",i)},
               onRight:function(){var ii=i;setRdM(function(p){var n=Object.assign({},p);n[chatThread]=Math.min(p[chatThread]||0,ii);return n})}},
-              ce("div",{className:"mb "+(mfr(m)===cu?"mine":"theirs")},
+              ce("div",{className:"mb "+(mfr(m)===cu?"mine":"theirs"),
+                onContextMenu:function(e){e.preventDefault();showDeleteActions()},
+                onTouchStart:function(){pressTimer=setTimeout(showDeleteActions,550)},
+                onTouchEnd:function(){if(pressTimer)clearTimeout(pressTimer)},
+                onTouchMove:function(){if(pressTimer)clearTimeout(pressTimer)}},
                 ce("div",null,mtx(m)),
                 ce("div",{className:"mbi"},P[mfr(m)]+" · "+mDate.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}))))
           )})),
       ce(MI,{onSend:function(text){addM(chatThread,text);mkRd(chatThread)},ph:"Antworten..."}));}
   // Thread list
   var threads=[];
-  Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m)||!m.length)return;var tid=k;var task=tMap[tid];if(!task)return;var cat=cMap[task.ct];var rd=rdM[k]||0;var unread=0;for(var i=rd;i<m.length;i++){if(mfr(m[i])!==cu)unread++}threads.push({key:k,tid:tid,task:task,cat:cat,unread:unread,last:m[m.length-1],cnt:m.length})});
+  Object.keys(msgs).forEach(function(k){var m=msgs[k];if(!Array.isArray(m)||!m.length)return;var tid=k;var task=tid===GENERAL_THREAD_ID?{x:"Allgemein"}:tMap[tid];if(!task)return;var cat=tid===GENERAL_THREAD_ID?{i:"💭",t:"Allgemein"}:cMap[task.ct];var rd=rdM[k]||0;var unread=0;for(var i=rd;i<m.length;i++){if(m[i]&&m[i].hiddenFor&&m[i].hiddenFor[cu])continue;if(mfr(m[i])!==cu)unread++}threads.push({key:k,tid:tid,task:task,cat:cat,unread:unread,last:m[m.length-1],cnt:m.length})});
   threads.sort(function(a,b){return mts(b.last)-mts(a.last)});
   return ce("div",{className:"vp"},
     ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B",marginBottom:4}},"💬 Alle Kommentare"),
+    ce("button",{className:"la",style:{marginBottom:10,width:"100%"},onClick:function(){if(!msgs[GENERAL_THREAD_ID])setMsgs(function(p){var n=Object.assign({},p);n[GENERAL_THREAD_ID]=[];return n});setChatThread(GENERAL_THREAD_ID)}},
+      "＋ Allgemeines Thema starten"),
     ce("div",{style:{fontSize:11,color:"#94A3B8",marginBottom:14}},threads.length+" Konversationen"+(uCnt>0?" · "+uCnt+" ungelesen":"")),
     threads.length===0?ce("div",{style:{textAlign:"center",padding:40,color:"#94A3B8",fontSize:13}},"Noch keine Kommentare. Tippe bei einer Aufgabe auf den Text, um Kommentare zu schreiben."):null,
     threads.map(function(th){
@@ -957,10 +952,10 @@ function routineView(){
   var filtered=srch?byOwner.filter(function(t){return t.x.toLowerCase().indexOf(srch.toLowerCase())>=0}):byOwner;
   var isDailyLike=function(t){return t.f==="daily"||t.f==="once"};
   var byTime={
-    morning:filtered.filter(function(t){return isDailyLike(t)&&t.tm==="morning"}),
-    midday:filtered.filter(function(t){return isDailyLike(t)&&t.tm==="midday"}),
+    morning:filtered.filter(function(t){return isDailyLike(t)&&(t.tm==="morning"||t.tm==="midday")}),
+    afternoon:filtered.filter(function(t){return isDailyLike(t)&&t.tm==="afternoon"}),
     evening:filtered.filter(function(t){return isDailyLike(t)&&t.tm==="evening"}),
-    none:filtered.filter(function(t){return !isDailyLike(t)||!t.tm||["afternoon"].indexOf(t.tm)>=0})
+    none:filtered.filter(function(t){return !isDailyLike(t)||!t.tm})
   };
   function weekPlanText(task){
     var wp=typeof wPlan[task.id]==="object"?wPlan[task.id]:null;
@@ -981,7 +976,7 @@ function routineView(){
         return ce("button",{key:f[0],style:{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid "+(act?(f[2]||"#1E293B"):"#E5E7EB"),background:act?(f[2]?OC[f[0]]?OC[f[0]][0]:"#1E293B":"#1E293B"):"#fff",color:act?"#fff":(f[2]||"#94A3B8"),fontSize:14,fontWeight:700,fontFamily:"inherit"},
           onClick:function(){setFp(f[0])}},f[1])
       })),
-    [["Morgens","🌅",byTime.morning],["Mittags","☀️",byTime.midday],["Abends","🌙",byTime.evening],["Keine Zuordnung","📌",byTime.none]].map(function(sec){
+    [["Vormittag","🌅",byTime.morning],["Nachmittag","☀️",byTime.afternoon],["Abends","🌙",byTime.evening],["Keine Zuordnung","📌",byTime.none]].map(function(sec){
       if(!sec[2].length)return null;
       return ce("div",{key:sec[0]},
         ce("div",{style:{display:"flex",alignItems:"center",gap:6,padding:"10px 4px",fontSize:14,fontWeight:700,color:"#1E293B"}},
@@ -1110,7 +1105,7 @@ function editMod(){if(!mod||["edit","new"].indexOf(mod.type)<0)return null;var i
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Bereich"),ce("select",{className:"fse",value:fd.ct||"daily",onChange:function(e){setFd(function(p){return Object.assign({},p,{ct:e.target.value})})}},CL.map(function(c){return ce("option",{key:c.id,value:c.id},c.i+" "+c.t)})))):null,
       ce("div",{className:"fr"},
         fd.kind!=="routine"?ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Zuständig"),ce("select",{className:"fse",value:fd.o||"SANDER",onChange:function(e){setFd(function(p){return Object.assign({},p,{o:e.target.value})})}},["NONE","SANDER","NATA"].map(function(k){return ce("option",{key:k,value:k},P[k])}))):null,
-        fd.kind==="routine"?ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),ce("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends"))):null),
+        fd.kind==="routine"?ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),ce("select",{className:"fse",value:(fd.tm==="midday"?"morning":(fd.tm||"")),onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value==="midday"?"morning":e.target.value})})}},ce("option",{value:""},"Keine Zuordnung"),ce("option",{value:"morning"},"Vormittag"),ce("option",{value:"afternoon"},"Nachmittag"),ce("option",{value:"evening"},"Abends"))):null),
       fd.kind==="routine"?ce("div",{className:"fg"},
         ce("label",{className:"fl"},"Wochenzuordnung (Mo–So)"),
         ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}},
@@ -1160,8 +1155,8 @@ function quickAddMod(){if(!mod||mod.type!=="quickAdd")return null;
           ce("select",{className:"fse",value:fd.o||cu,onChange:function(e){setFd(function(p){return Object.assign({},p,{o:e.target.value})})}},
             ["NONE","SANDER","NATA"].map(function(k){return ce("option",{key:k,value:k},P[k])}))),
         ce("div",{className:"fg",style:{flex:1}},ce("label",{className:"fl"},"Tageszeit"),
-          ce("select",{className:"fse",value:fd.tm||"",onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value})})}},
-            ce("option",{value:""},"Keine"),ce("option",{value:"morning"},"Morgens"),ce("option",{value:"midday"},"Mittags"),ce("option",{value:"afternoon"},"Nachmittags"),ce("option",{value:"evening"},"Abends")))),
+          ce("select",{className:"fse",value:(fd.tm==="midday"?"morning":(fd.tm||"")),onChange:function(e){setFd(function(p){return Object.assign({},p,{tm:e.target.value==="midday"?"morning":e.target.value})})}},
+            ce("option",{value:""},"Keine Zuordnung"),ce("option",{value:"morning"},"Vormittag"),ce("option",{value:"afternoon"},"Nachmittag"),ce("option",{value:"evening"},"Abends")))),
       ce("div",{style:{fontSize:13,color:"#F59E0B",fontWeight:600,marginBottom:8,padding:"8px 12px",background:"#FFFBEB",borderRadius:8}},"⚡ Erscheint nur am "+sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
       ce("button",{className:"fsub",onClick:function(){if(!(fd.x||"").trim())return;quickAdd(fd)}},"Hinzufügen")));}
 var navI=[{id:"today",i:"🏠",l:"Heute"},{id:"lib",i:"📋",l:"Routine"},{id:"extra",i:"🧠",l:"Mental Load"},{id:"chat",i:"💬",l:"Chat"},{id:"chk",i:"⚖️",l:"Check-in"}];
