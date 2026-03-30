@@ -684,7 +684,7 @@ function TC(pr){
   var showDoneBox=!(pr.mode==="today"&&t.kind==="mental"&&!t.isReminder&&!t.isQuickActive);
   var mk=mkKey(t.id,sDay);var mList=(msgs[mk]||[]).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])});var ur2=unreadFor(t.id,sDay);
   var cOpen=!!commentOpen[mk];
-  var isExp=pr.mode==="today"?false:exp===t.id;
+  var isExp=exp===t.id;
   var isTodayMode=pr.mode==="today";
   function openEdit(){
     if(pr.mode==="today"&&t.kind==="mental"&&!t.isQuickActive&&!t.isReminder)return;
@@ -698,7 +698,13 @@ function TC(pr){
     setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));
     setMod({type:"edit"});
   }
-  function onCardClick(){openEdit();}
+  function onCardClick(){
+    if(pr.mode==="today"&&t.kind==="mental"){
+      setExp(function(prev){return prev===t.id?null:t.id});
+      return;
+    }
+    openEdit();
+  }
   var expNode=null;
   if(isExp&&!t.isReminder&&isTodayMode){
     if(t.kind==="routine"){
