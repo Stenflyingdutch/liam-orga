@@ -784,6 +784,22 @@ function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(
       ce("span",{className:"tsec-c",style:{color:dc===pr.tasks.length?"#059669":"#94A3B8"}},dc+"/"+pr.tasks.length)),
     !isCol?ce("div",null,
       pr.tasks.map(function(t){return ce(TC,{key:t.id,t:t,showCat:true,mode:pr.mode})})):null);}
+function MLCard(t){
+  var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
+  return ce("div",{key:t.id,className:"li"},
+    ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
+      ce("div",{className:"li-t"},t.x),
+      ce("div",{className:"li-m"},
+        ce("span",{className:"bg",style:{backgroundColor:oc[0],color:oc[1]}},P[ow]||P.NONE),
+        " ",
+        ce("span",{className:"bg",style:{backgroundColor:"#EEF2FF",color:"#4338CA"}},MLT[t.mlTerm]||"Monat"),
+        getReminderDate(t)?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E",marginLeft:4}},"📅 "+new Date(getReminderDate(t)+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null
+      )
+    ),
+    ce("div",{style:{display:"flex",gap:4}},
+      ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"))
+  );
+}
 // TODAY VIEW
 function todayView(){
   var dk=dky(sDay);var isT=dk===dky(new Date());
@@ -823,7 +839,12 @@ function todayView(){
     ce(TS,{title:"Routine · Morgens",icon:"🌅",tasks:filt(sm.m),mode:"today"}),
     ce(TS,{title:"Routine · Abends",icon:"🌙",tasks:filt(sm.e),mode:"today"}),
     ce(TS,{title:"Routine · Weitere",icon:"✅",tasks:filt(sm.d.concat(sm.mid).concat(sm.a).concat(sm.o)),mode:"today"}),
-    ce(TS,{title:"Mental Load · Meine Aufgaben",icon:"🧠",tasks:filt(mentalTodayTasks),mode:"today"}),
+    ce("div",{className:"tsec"},
+      ce("div",{className:"tsec-h"},
+        ce("div",{className:"tsec-t"},ce("span",null,"🧠"),"Mental Load · Meine Aufgaben"),
+        ce("span",{className:"tsec-c"},filt(mentalTodayTasks).length)),
+      filt(mentalTodayTasks).map(function(t){return ce(MLCard,t);})
+    ),
     ce("div",{className:"mlc"},ce("div",{className:"ml-t"},"⚖️ Balance"),
       ce("div",{className:"ml-s"},[["SANDER","#1D4ED8"],["NATA","#BE185D"]].map(function(x){var s=sts.pp[x[0]]||{t:0,d:0};return ce("div",{key:x[0],className:"ml-si"},ce("div",{className:"ml-n",style:{color:x[1]}},s.t),ce("div",{className:"ml-l"},P[x[0]]))}))));}
 function extraView(){
@@ -845,22 +866,7 @@ function extraView(){
       return ce("div",{key:k},
         ce("div",{style:{display:"flex",alignItems:"center",gap:6,padding:"8px 4px",fontSize:14,fontWeight:700,color:cat.c}},
           cat.i+" "+cat.t,ce("span",{style:{fontSize:11,color:"#94A3B8",fontWeight:600,marginLeft:"auto"}},"("+ct.length+")")),
-        ct.map(function(t){
-          var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
-          return ce("div",{key:t.id,className:"li"},
-            ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
-              ce("div",{className:"li-t"},t.x),
-              ce("div",{className:"li-m"},
-                ce("span",{className:"bg",style:{backgroundColor:oc[0],color:oc[1]}},P[ow]||P.NONE),
-                " ",
-                ce("span",{className:"bg",style:{backgroundColor:"#EEF2FF",color:"#4338CA"}},MLT[t.mlTerm]||"Monat"),
-                getReminderDate(t)?ce("span",{className:"bg",style:{backgroundColor:"#FEF3C7",color:"#92400E",marginLeft:4}},"📅 "+new Date(getReminderDate(t)+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})):null
-              )
-            ),
-            ce("div",{style:{display:"flex",gap:4}},
-              ce("button",{className:"lib libd",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"))
-          );
-        })
+        ct.map(function(t){return ce(MLCard,t);})
       );
     })
   );
