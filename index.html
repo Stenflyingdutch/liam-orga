@@ -390,6 +390,11 @@ function getReminderDate(t){
   if(Array.isArray(t.reminders)&&t.reminders.length)return t.reminders[0];
   return "";
 }
+function getMlQuickMeta(v){
+  if(typeof v==="string")return {owner:nOw(v),day:""};
+  if(v&&typeof v==="object")return {owner:nOw(v.owner),day:typeof v.day==="string"?v.day:""};
+  return {owner:"NONE",day:""};
+}
 function mfr(m){return m?(m.fr||m.from||"?"):"?"}
 function mtx(m){return m?(m.t||m.text||""):""}
 function mts(m){return m?(m.ts||m.time||0):0}
@@ -636,23 +641,17 @@ var gOw=uc(function(tid,date){
 ue(function(){
   var changed=false;
   var nextQuick=Object.assign({},mlQuick);
+  var realToday=dky(new Date());
   Object.keys(nextQuick).forEach(function(tid){
     var task=tMap[tid];
     if(!task||task.kind!=="mental"){delete nextQuick[tid];changed=true;return}
+    var meta=getMlQuickMeta(nextQuick[tid]);
     var owner=gOw(tid,sDay);
-    if(owner==="NONE"||nextQuick[tid]!==owner){delete nextQuick[tid];changed=true;}
+    if(owner==="NONE"||meta.owner!==owner){delete nextQuick[tid];changed=true;return}
+    if(meta.day&&meta.day<realToday){delete nextQuick[tid];changed=true;}
   });
   if(!changed)return;
   setMlQuick(nextQuick);
-  setTs(function(prev){
-    var n=Object.assign({},prev);
-    Object.keys(prev).forEach(function(k){
-      var parts=k.split("__");
-      if(parts[1]!=="asneeded")return;
-      if(!nextQuick[parts[0]])delete n[k];
-    });
-    return n;
-  });
 },[mlQuick,tMap,gOw,sDay]);
 var sOwn=uc(function(tid,per,scope,date){
   if(scope==="day"){setDOw(function(p){var n=Object.assign({},p);n[tid+"_"+dky(date)]=per;return n})}
@@ -725,15 +724,6 @@ var mkRd=uc(function(key){setRdM(function(p){var m=msgs[key]||[];if(!m.length)re
 var mkRdTaskDay=uc(function(tid,date){threadKeysForTaskOnDate(tid,date).forEach(function(k){mkRd(k)})},[mkRd]);
 var cMap=um(function(){var m={};CL.forEach(function(c){m[c.id]=c});return m},[]);
 var tMap=um(function(){var m={};tl.forEach(function(t){m[t.id]=t});return m},[tl]);
-ue(function(){
-  var changed=false;var next=Object.assign({},mlQuick);
-  Object.keys(next).forEach(function(tid){
-    var task=tMap[tid];
-    if(!task||task.kind!=="mental"){delete next[tid];changed=true;return}
-    if(next[tid]!==gOw(tid,sDay)){delete next[tid];changed=true;}
-  });
-  if(changed)setMlQuick(next);
-},[mlQuick,tMap,gOw,sDay]);
 var dayT=um(function(){
   var dow=sDay.getDay();var dk=dky(sDay);
   var filtered=tl.filter(function(t){
@@ -772,12 +762,7 @@ var extraT=um(function(){
   return filtered;
 },[tl,cMap,gOw,sDay,tOrd]);
 var mentalQuickTodayTasks=um(function(){
-  return tl.filter(function(t){
-    if(t.kind!=="mental")return false;
-    var owner=gOw(t.id,sDay);
-    if(owner==="NONE")return false;
-    return mlQuick[t.id]===owner;
-  }).map(function(t){return Object.assign({},t,{cat:cMap[t.ct],owner:gOw(t.id,sDay),isQuickActive:true,f:"asneeded"})});
+  return [];
 },[tl,cMap,gOw,sDay,mlQuick]);
 var sts=um(function(){var tot=0,dn=0,pp={SANDER:{t:0,d:0},NATA:{t:0,d:0}};dayT.forEach(function(t){var c=isD(t.id,t.f,sDay);tot++;if(c)dn++;if(pp[t.owner]){pp[t.owner].t++;if(c)pp[t.owner].d++}});return{tot:tot,dn:dn,pp:pp}},[dayT,isD,sDay]);
 var mentalBalance=um(function(){
@@ -957,8 +942,21 @@ var reminderTodayTasks=um(function(){
     if(done&&doneAt!==dky(sDay))return;
     list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done});
   });
+  Object.keys(mlQuick).forEach(function(tid){
+    var t=tMap[tid];
+    if(!t||t.kind!=="mental")return;
+    var meta=getMlQuickMeta(mlQuick[tid]);
+    var qDay=meta.day||dky(sDay);
+    if(qDay!==dky(sDay))return;
+    var ro=gOw(t.id,sDay);if(ro==="NONE")return;
+    var rid=mkReminderId(t.id,"quick__"+qDay);
+    var doneAt=rDone[rid]||"";
+    var done=!!doneAt;
+    if(done&&doneAt!==dky(sDay))return;
+    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:qDay,parentTaskId:t.id,isReminder:true,isQuickGenerated:true,reminderDate:qDay,done:done});
+  });
   return list;
-},[tl,sDay,cMap,gOw,rDone]);
+},[tl,tMap,mlQuick,sDay,cMap,gOw,rDone]);
 var mentalTodayTasks=um(function(){
   return tl.filter(function(t){
     if(t.kind!=="mental")return false;
@@ -1130,6 +1128,7 @@ function TC(pr){
   var isTodayMode=pr.mode==="today";
   function openEdit(){
     if(pr.mode==="today"&&t.kind==="mental"&&!t.isQuickActive&&!t.isReminder)return;
+    if(t.isQuickGenerated)return;
     if(t.isReminder){
       var parent=tMap[t.parentTaskId];
       if(!parent)return;
@@ -1198,8 +1197,7 @@ function TC(pr){
       ce("div",{className:"tc-actions"},
         pr.mode==="today"&&t.kind==="mental"&&!t.isReminder&&!t.isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(e){
           e.stopPropagation();
-          setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]=ow;return n});
-          setTs(function(prev){var n=Object.assign({},prev);delete n[ckKey(t.id,"asneeded",sDay)];return n});
+          setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]={owner:ow,day:dky(sDay)};return n});
         }},"＋"):null,
         ce("button",{className:"cbtn",onClick:function(e){e.stopPropagation();setCommentOpen(function(prev){var n=Object.assign({},prev);n[mk]=!n[mk];if(!n[mk]&&ur2>0)mkRdTaskDay(t.id,sDay);return n;});if(ur2>0)mkRdTaskDay(t.id,sDay)}},
           "💬",ur2>0?ce("span",{className:"ubg"},ur2):null)
@@ -1229,8 +1227,9 @@ function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(
 function MLCard(t){
   var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
   var threadKey=mkKey(t.id,sDay);var legacyKey=legacyThreadKey(t.id,sDay);var unread=unreadFor(t.id,sDay);var msgCount=threadMsgsSafe(msgs,threadKey).concat(threadMsgsSafe(msgs,legacyKey)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])}).length;
-  var isQuickActive=mlQuick[t.id]===ow;
-  var quickDone=isQuickActive&&isD(t.id,"asneeded",sDay);
+  var quickMeta=getMlQuickMeta(mlQuick[t.id]);
+  var isQuickActive=quickMeta.owner===ow&&((quickMeta.day||dky(sDay))===dky(sDay));
+  var quickDone=isQuickActive&&isD(mkReminderId(t.id,"quick__"+dky(sDay)),"once",sDay);
   var isMentalTab=t.viewMode==="mentalTab";
   return ce("div",{key:t.id,className:"li"},
     ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
@@ -1245,8 +1244,7 @@ function MLCard(t){
     ce("div",{style:{display:"flex",gap:4}},
       isMentalTab?ce("button",{className:"lib libd",title:"Löschen",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"):[
       !isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(){
-        setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]=ow;return n});
-        setTs(function(prev){var n=Object.assign({},prev);delete n[ckKey(t.id,"asneeded",sDay)];return n});
+        setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]={owner:ow,day:dky(sDay)};return n});
       }},"＋"):null,
       ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(t.id);if(unread>0)mkRdTaskDay(t.id,sDay)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null)
       ])
