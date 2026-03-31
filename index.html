@@ -633,6 +633,27 @@ var gOw=uc(function(tid,date){
   }
   return ["SANDER","NATA","NONE"].indexOf(base)>=0?base:"NONE";
 },[dOw,bOw,tl,wPlan]);
+ue(function(){
+  var changed=false;
+  var nextQuick=Object.assign({},mlQuick);
+  Object.keys(nextQuick).forEach(function(tid){
+    var task=tMap[tid];
+    if(!task||task.kind!=="mental"){delete nextQuick[tid];changed=true;return}
+    var owner=gOw(tid,sDay);
+    if(owner==="NONE"||nextQuick[tid]!==owner){delete nextQuick[tid];changed=true;}
+  });
+  if(!changed)return;
+  setMlQuick(nextQuick);
+  setTs(function(prev){
+    var n=Object.assign({},prev);
+    Object.keys(prev).forEach(function(k){
+      var parts=k.split("__");
+      if(parts[1]!=="asneeded")return;
+      if(!nextQuick[parts[0]])delete n[k];
+    });
+    return n;
+  });
+},[mlQuick,tMap,gOw,sDay]);
 var sOwn=uc(function(tid,per,scope,date){
   if(scope==="day"){setDOw(function(p){var n=Object.assign({},p);n[tid+"_"+dky(date)]=per;return n})}
   else if(scope==="week"){var d=new Date(date);var dow=d.getDay();for(var i=0;i<7;i++){(function(ii){var nd=new Date(d);nd.setDate(d.getDate()-dow+ii);setDOw(function(p){var n=Object.assign({},p);n[tid+"_"+dky(nd)]=per;return n})})(i)}}
@@ -1206,10 +1227,11 @@ function MLCard(t){
   var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
   var threadKey=mkKey(t.id,sDay);var legacyKey=legacyThreadKey(t.id,sDay);var unread=unreadFor(t.id,sDay);var msgCount=threadMsgsSafe(msgs,threadKey).concat(threadMsgsSafe(msgs,legacyKey)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])}).length;
   var isQuickActive=mlQuick[t.id]===ow;
+  var quickDone=isQuickActive&&isD(t.id,"asneeded",sDay);
   var isMentalTab=t.viewMode==="mentalTab";
   return ce("div",{key:t.id,className:"li"},
     ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
-      ce("div",{className:"li-t"},t.x),
+      ce("div",{className:"li-t",style:quickDone?{textDecoration:"line-through",opacity:.7}:null},t.x),
       ce("div",{className:"li-m"},
         ce("span",{className:"bg",style:{backgroundColor:oc[0],color:oc[1]}},P[ow]||P.NONE),
         " ",
@@ -1354,7 +1376,9 @@ function extraView(){
   var tasks=srch?byOwner.filter(function(t){return t.x.toLowerCase().indexOf(srch.toLowerCase())>=0}):byOwner;
   var grouped={};tasks.forEach(function(t){if(!grouped[t.ct])grouped[t.ct]={cat:cMap[t.ct],tasks:[]};grouped[t.ct].tasks.push(t)});
   return ce("div",{className:"vp"},
-    ce("div",{className:"lh"},ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load")),
+    ce("div",{className:"lh"},
+      ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load"),
+      ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"mental",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
     ce("input",{className:"ls",placeholder:"🔍 Suchen...",value:srch,onChange:function(e){setSrch(e.target.value)}}),
     ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Wechselt automatisch am 1. von Monat, Quartal oder Jahr – oder bleibt mit „Fix“ dauerhaft bei einer Person."),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
