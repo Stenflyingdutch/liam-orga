@@ -673,6 +673,45 @@ var isD=uc(function(tid,f,d){
   if(f==="once"&&String(tid).indexOf("__rem__")>=0)return !!rDone[tid];
   return !!ts[ckKey(tid,f,date)];
 },[ts,sDay,rDone]);
+var reactivateQuickReminder=uc(function(taskId,owner){
+  var todayKey=dky(sDay);
+  var reminderId=mkReminderId(taskId,"quick__"+todayKey);
+  setMlQuick(function(prev){
+    var n=Object.assign({},prev);
+    n[taskId]={owner:owner,day:todayKey};
+    return n;
+  });
+  setRDone(function(prev){
+    if(!prev[reminderId])return prev;
+    var n=Object.assign({},prev);
+    delete n[reminderId];
+    return n;
+  });
+},[sDay]);
+var applyMentalTermAssignment=uc(function(tid,per,scope,date){
+  var d=date||sDay;
+  var start,end;
+  if(scope==="year"){
+    start=new Date(d.getFullYear(),0,1);
+    end=new Date(d.getFullYear(),11,31);
+  }else if(scope==="quarter"){
+    var qStart=Math.floor(d.getMonth()/3)*3;
+    start=new Date(d.getFullYear(),qStart,1);
+    end=new Date(d.getFullYear(),qStart+3,0);
+  }else{
+    start=new Date(d.getFullYear(),d.getMonth(),1);
+    end=new Date(d.getFullYear(),d.getMonth()+1,0);
+  }
+  setDOw(function(prev){
+    var n=Object.assign({},prev);
+    var cur=new Date(start);
+    while(cur<=end){
+      n[tid+"_"+dky(cur)]=per;
+      cur.setDate(cur.getDate()+1);
+    }
+    return n;
+  });
+},[sDay]);
   var tog=uc(function(tid,f,d){
     var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
     if(String(tid).indexOf("__rem__")>=0){
@@ -1214,7 +1253,7 @@ function TC(pr){
       ce("div",{className:"tc-actions"},
         pr.mode==="today"&&t.kind==="mental"&&!t.isReminder&&!t.isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(e){
           e.stopPropagation();
-          setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]={owner:ow,day:dky(sDay)};return n});
+          reactivateQuickReminder(t.id,ow);
         }},"＋"):null,
         ce("button",{className:"cbtn",onClick:function(e){e.stopPropagation();setCommentOpen(function(prev){var n=Object.assign({},prev);n[mk]=!n[mk];if(!n[mk]&&ur2>0)mkRdTaskDay(t.id,sDay);return n;});if(ur2>0)mkRdTaskDay(t.id,sDay)}},
           "💬",ur2>0?ce("span",{className:"ubg"},ur2):null)
@@ -1261,8 +1300,12 @@ function MLCard(t){
     ce("div",{style:{display:"flex",gap:4}},
       isMentalTab?ce("button",{className:"lib libd",title:"Löschen",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"):[
       !isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(){
-        setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]={owner:ow,day:dky(sDay)};return n});
+        reactivateQuickReminder(t.id,ow);
       }},"＋"):null,
+      ce("button",{className:"lib",title:"Zuordnung für Zeitraum ändern",onClick:function(){
+        setFd({tid:t.id,per:ow,scope:"month"});
+        setMod({type:"assignMentalTerm"});
+      }},"🗓"),
       ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(t.id);if(unread>0)mkRdTaskDay(t.id,sDay)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null)
       ])
   );
@@ -1779,6 +1822,19 @@ function assignMod(){if(!mod||mod.type!=="assign")return null;var t=tMap[fd.tid]
         }},"Wochenplan entfernen"):null,
       // Save button for day/week/month/forever
       ce("button",{className:"assv",style:{marginTop:12},onClick:function(){sOwn(fd.tid,fd.per,fd.scope,sDay);setMod(null)}},"Speichern")));}
+function assignMentalTermMod(){if(!mod||mod.type!=="assignMentalTerm")return null;var t=tMap[fd.tid];if(!t)return null;
+  return ce("div",{className:"mo",onClick:function(e){if(e.target===e.currentTarget)setMod(null)}},
+    ce("div",{className:"md"},
+      ce("div",{className:"md-t"},ce("span",null,"🧠 "+t.x),ce("button",{className:"md-x",onClick:function(){setMod(null)}},"✕")),
+      ce("div",{style:{fontSize:14,fontWeight:700,color:"#1E293B",marginBottom:10}},"Wer übernimmt im aktuellen Zeitraum?"),
+      ce("div",{className:"asp"},["NONE","SANDER","NATA"].map(function(p){var a=fd.per===p;var c=OC[p];return ce("button",{key:p,className:"aspp",style:{borderColor:a?c[1]:"#E5E7EB",backgroundColor:a?c[0]:"#fff",color:a?c[1]:"#94A3B8"},onClick:function(){setFd(function(x){return Object.assign({},x,{per:p})})}},P[p])})),
+      ce("div",{style:{fontSize:14,fontWeight:700,color:"#1E293B",marginBottom:10}},"Zeitraum"),
+      ce("div",{className:"asc"},
+        [["month","Aktueller Monat"],["quarter","Aktuelles Quartal"],["year","Aktuelles Jahr"]].map(function(x){
+          return ce("button",{key:x[0],className:"asb"+(fd.scope===x[0]?" sel":""),onClick:function(){setFd(function(f){return Object.assign({},f,{scope:x[0]})})}},x[1]);
+        })),
+      ce("button",{className:"assv",style:{marginTop:12},onClick:function(){applyMentalTermAssignment(fd.tid,fd.per,fd.scope,sDay);setMod(null)}},"Speichern")));
+}
 // EDIT/NEW MODAL
 function reminderEditMod(){
   if(!mod||mod.type!=="editReminder")return null;
@@ -1870,7 +1926,7 @@ var navI=cu==="ANTONELLA"?[{id:"antonella",i:"🕒",l:"Antonella"}]:[{id:"today"
 return ce("div",{className:"app"},
   ce("div",{className:"hdr"},ce("div",{className:"hdr-l"},ce("span",{style:{fontSize:22}},"👶"),ce("div",null,ce("div",{className:"hdr-t"},"Liam Orga"),ce("div",{className:"hdr-d"},new Date().toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"short"})))),ce("div",{className:"hdr-r"},ce("div",{className:"sdot "+(onl?"on":"off")}))),
   ce("div",{className:"cnt"},vw==="today"?todayView():null,vw==="gami"?gamificationView():null,vw==="antonella"?antonellaView():null,vw==="extra"?extraView():null,vw==="chat"?chatView():null,vw==="lib"?routineView():null,vw==="chk"?chkView():null),
-  assignMod(),editMod(),reminderEditMod(),quickAddMod(),
+  assignMod(),assignMentalTermMod(),editMod(),reminderEditMod(),quickAddMod(),
   ce("div",{className:"nav"},navI.map(function(n){return ce("button",{key:n.id,className:"nb"+(vw===n.id?" act":""),onClick:function(){setVw(n.id);if(n.id==="chat")setChatThread(null);setExp(null)}},ce("span",{className:"ni"},n.i),ce("span",{className:"nl"},n.l),n.id==="chat"&&uCnt>0?ce("span",{className:"nbg"},uCnt):null)})));
 }
 ReactDOM.createRoot(document.getElementById("root")).render(ce(App));
