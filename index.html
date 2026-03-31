@@ -923,6 +923,7 @@ var antonCurrentStats=um(function(){
 
 var sm=um(function(){var isDly=function(t){return t.f==="daily"||t.f==="once"};return{m:dayT.filter(function(t){return t.tm==="morning"&&isDly(t)}),mid:dayT.filter(function(t){return t.tm==="midday"&&isDly(t)}),a:dayT.filter(function(t){return t.tm==="afternoon"&&isDly(t)}),e:dayT.filter(function(t){return t.tm==="evening"&&isDly(t)}),d:dayT.filter(function(t){return isDly(t)&&!t.tm}),o:dayT.filter(function(t){return!isDly(t)})}},[dayT]);
 var reminderTodayTasks=um(function(){
+  var todayKey=dky(sDay);
   var list=[];
   tl.forEach(function(t){
     if(t.kind!=="mental")return;
@@ -935,7 +936,7 @@ var reminderTodayTasks=um(function(){
     var doneAt=rDone[rid]||"";
     var done=!!doneAt;
     if(done&&doneAt!==dky(sDay))return;
-    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done});
+    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done,isDueToday:r===todayKey});
   });
   Object.keys(mlQuick).forEach(function(tid){
     var t=tMap[tid];
@@ -948,10 +949,11 @@ var reminderTodayTasks=um(function(){
     var doneAt=rDone[rid]||"";
     var done=!!doneAt;
     if(done&&doneAt!==dky(sDay))return;
-    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:qDay,parentTaskId:t.id,isReminder:true,isQuickGenerated:true,reminderDate:qDay,done:done});
+    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:qDay,parentTaskId:t.id,isReminder:true,isQuickGenerated:true,reminderDate:qDay,done:done,isDueToday:qDay===todayKey});
   });
   list.sort(function(a,b){
     if(a.done!==b.done)return a.done?1:-1;
+    if(a.isDueToday!==b.isDueToday)return a.isDueToday?-1:1;
     var ad=a.dueDate||"";var bd=b.dueDate||"";
     if(ad<bd)return -1;
     if(ad>bd)return 1;
