@@ -1251,13 +1251,9 @@ function MLCard(t){
 }
 // TODAY VIEW
 function todayView(){
-  var dk=dky(sDay);var isT=dk===dky(new Date());
-  var greet=tOD==="morning"?"Guten Morgen":tOD==="midday"?"Mahlzeit":tOD==="afternoon"?"Nachmittag":"Guten Abend";
   // Filter tasks
   function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp})}
   function setFilter(v){setFp(v)}
-  var ownTasks=gameStats.ownTasks;
-  var ownDone=gameStats.ownDone;
   return ce("div",{className:"vp"},
     ce(Cal),
     // New messages banner
@@ -1276,10 +1272,6 @@ function todayView(){
         return ce("button",{key:f[0],style:{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid "+(act?(f[2]||"#1E293B"):"#E5E7EB"),background:act?(f[2]?OC[f[0]]?OC[f[0]][0]:"#1E293B":"#1E293B"):"#fff",color:act?(f[2]?"#fff":"#fff"):(f[2]||"#94A3B8"),fontSize:14,fontWeight:700,fontFamily:"inherit"},
           onClick:function(){setFilter(f[0])}},f[1])
       })),
-    ce("div",{className:"gc"},
-      isT?ce("div",{className:"gc-t"},greet+", "+P[cu]+" 👋"):ce("div",{style:{fontSize:16,fontWeight:700,color:"#1E293B"}},sDay.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})),
-      ce("div",{className:"gc-s"},ownDone+"/"+ownTasks.length+" erledigt"),ce(PB,{d:ownDone,t:ownTasks.length})),
-    ce("button",{className:"gflink",onClick:function(){setVw("gami")}},"🏆 Zu Awards"),
     // Quick add button
     ce("button",{style:{width:"100%",padding:"14px",borderRadius:12,border:"1.5px dashed #CBD5E1",background:"#fff",fontSize:15,fontWeight:600,color:"#64748B",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8},
       onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:"",isQuick:true});setMod({type:"quickAdd"})}},
