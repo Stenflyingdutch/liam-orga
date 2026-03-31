@@ -475,6 +475,7 @@ var _tOrd=us([]),tOrd=_tOrd[0],setTOrd=_tOrd[1];
 var _wPlan=us({}),wPlan=_wPlan[0],setWPlan=_wPlan[1]; // {taskId: {0:"SANDER",1:"NATA",...} or "alt"}
 var _mlTermState=us({}),mlTermState=_mlTermState[0],setMlTermState=_mlTermState[1];
 var _mlQuick=us({}),mlQuick=_mlQuick[0],setMlQuick=_mlQuick[1];
+var _todayHidden=us({}),todayHidden=_todayHidden[0],setTodayHidden=_todayHidden[1];
 var _praise=us([]),praise=_praise[0],setPraise=_praise[1];
 var _praiseText=us(""),praiseText=_praiseText[0],setPraiseText=_praiseText[1];
 var _antonella=us({entries:{},targets:{}}),antonella=_antonella[0],setAntonella=_antonella[1];
@@ -526,6 +527,7 @@ ue(function(){
   u.push(subDoc("tOrd",function(d){if(d.exists&&d.data().o){fromServer.current++;setTOrd(d.data().o);setTimeout(function(){fromServer.current--},500)}}));
   u.push(subDoc("wPlan",function(d){if(d.exists){fromServer.current++;setWPlan(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(subDoc("mlQuick",function(d){if(d.exists){fromServer.current++;setMlQuick(d.data());setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("todayHidden",function(d){if(d.exists){fromServer.current++;setTodayHidden(d.data()||{});setTimeout(function(){fromServer.current--},500)}}));
   u.push(subDoc("praise",function(d){if(d.exists){fromServer.current++;var data=d.data()||{};setPraise(Array.isArray(data.items)?data.items:[]);setTimeout(function(){fromServer.current--},500)}}));
   u.push(subDoc("antonella",function(d){if(d.exists){fromServer.current++;var data=d.data()||{};setAntonella({entries:data.entries||{},targets:data.targets||{}});setTimeout(function(){fromServer.current--},500)}}));
   window.addEventListener("online",function(){setOnl(true)});window.addEventListener("offline",function(){setOnl(false)});
@@ -560,6 +562,7 @@ ue(function(){if(!canSaveDoc("rDone"))return;var t=setTimeout(function(){saveDoc
 ue(function(){if(!canSaveDoc("tOrd")||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
 ue(function(){if(!canSaveDoc("wPlan"))return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
 ue(function(){if(!canSaveDoc("mlQuick"))return;var t=setTimeout(function(){saveDoc("mlQuick",mlQuick)},500);return function(){clearTimeout(t)}},[mlQuick,ld]);
+ue(function(){if(!canSaveDoc("todayHidden"))return;var t=setTimeout(function(){saveDoc("todayHidden",todayHidden)},500);return function(){clearTimeout(t)}},[todayHidden,ld]);
 ue(function(){if(!canSaveDoc("praise"))return;var t=setTimeout(function(){saveDoc("praise",{items:praise})},500);return function(){clearTimeout(t)}},[praise,ld]);
 ue(function(){if(!canSaveDoc("antonella"))return;var t=setTimeout(function(){saveDoc("antonella",antonella)},500);return function(){clearTimeout(t)}},[antonella,ld]);
 ue(function(){
@@ -688,6 +691,44 @@ var reactivateQuickReminder=uc(function(taskId,owner){
     return n;
   });
 },[sDay]);
+var hideRoutineToday=uc(function(task){
+  if(!task||task.kind!=="routine")return;
+  var key=task.id+"_"+dky(sDay);
+  setTodayHidden(function(prev){
+    if(prev[key])return prev;
+    var n=Object.assign({},prev);
+    n[key]=Date.now();
+    return n;
+  });
+},[sDay]);
+var isHiddenToday=uc(function(task){
+  if(!task)return false;
+  return !!todayHidden[task.id+"_"+dky(sDay)];
+},[todayHidden,sDay]);
+var removeMentalReminder=uc(function(reminderTask){
+  if(!reminderTask||!reminderTask.isReminder||!reminderTask.parentTaskId)return;
+  var parentId=reminderTask.parentTaskId;
+  if(reminderTask.isQuickGenerated){
+    setMlQuick(function(prev){
+      if(!prev[parentId])return prev;
+      var n=Object.assign({},prev);
+      delete n[parentId];
+      return n;
+    });
+  }else{
+    setTl(function(list){return list.map(function(it){
+      if(it.id!==parentId)return it;
+      return Object.assign({},it,{reminderDate:"",reminders:[]});
+    })});
+  }
+  setRDone(function(prev){
+    var n=Object.assign({},prev);
+    Object.keys(prev).forEach(function(k){
+      if(k.split("__rem__")[0]===parentId)delete n[k];
+    });
+    return n;
+  });
+},[]);
 function scopeForMentalTerm(term){
   if(term==="yearly")return "year";
   if(term==="quarterly")return "quarter";
@@ -1311,7 +1352,22 @@ function TS(pr){if(!pr.tasks.length)return null;var dc=pr.tasks.filter(function(
       ce("div",{className:"tsec-t"},ce("span",null,pr.icon),pr.title,ce("span",{style:{fontSize:13,color:"#94A3B8",marginLeft:4}},isCol?"›":"▾")),
       ce("span",{className:"tsec-c",style:{color:dc===pr.tasks.length?"#059669":"#94A3B8"}},dc+"/"+pr.tasks.length)),
     !isCol?ce("div",null,
-      pr.tasks.map(function(t){return ce(TC,{key:t.id,t:t,showCat:true,mode:pr.mode})})):null);}
+      pr.tasks.map(function(t){
+        var canSwipeDelete=pr.mode==="today"&&((t.kind==="routine"&&!t.isReminder)||t.isReminder);
+        var card=ce(TC,{key:t.id,t:t,showCat:true,mode:pr.mode});
+        if(!canSwipeDelete)return card;
+        return ce(Swipe,{key:t.id,mb:5,radius:12,
+          leftText:t.isReminder?"🗑 Erinnerung löschen":"🗑 Nur heute löschen",
+          leftColor:"#FEE2E2",leftTxtColor:"#DC2626",
+          onLeft:function(){
+            if(t.isReminder){
+              if(confirm('"'+t.x+'" – Erinnerung löschen?'))removeMentalReminder(t);
+              return;
+            }
+            if(confirm('"'+t.x+'" – nur heute ausblenden?'))hideRoutineToday(t);
+          }
+        },card);
+      })):null);}
 function MLCard(t){
   var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
   var threadKey=mkKey(t.id,sDay);var legacyKey=legacyThreadKey(t.id,sDay);var unread=unreadFor(t.id,sDay);var msgCount=threadMsgsSafe(msgs,threadKey).concat(threadMsgsSafe(msgs,legacyKey)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])}).length;
@@ -1345,7 +1401,11 @@ function MLCard(t){
 // TODAY VIEW
 function todayView(){
   // Filter tasks
-  function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp})}
+  function filt(tasks){
+    var filtered=tasks.filter(function(t){return !isHiddenToday(t)});
+    if(fp==="ALL")return filtered;
+    return filtered.filter(function(t){return t.owner===fp});
+  }
   function setFilter(v){setFp(v)}
   return ce("div",{className:"vp"},
     ce(Cal),
