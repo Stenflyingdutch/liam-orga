@@ -339,6 +339,18 @@ function tod(){var h=new Date().getHours();return h<8?"morning":h<14?"midday":h<
 function nuid(){return"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function lsGet(key,fallback){try{var v=localStorage.getItem(key);return v===null||v===undefined?fallback:v}catch(e){return fallback}}
 function lsSet(key,value){try{localStorage.setItem(key,value);return true}catch(e){return false}}
+function readTaskCache(){
+  try{
+    var raw=lsGet("tlCacheV1","");
+    if(!raw)return null;
+    var parsed=JSON.parse(raw);
+    if(!Array.isArray(parsed))return null;
+    return parsed.filter(function(x){return x&&typeof x==="object"}).map(normTask);
+  }catch(e){return null}
+}
+function writeTaskCache(list){
+  try{if(Array.isArray(list))lsSet("tlCacheV1",JSON.stringify(list))}catch(e){}
+}
 function rdmStorageKey(user){return "lr2_"+(user||"guest")}
 function readRdMFromStorage(user){
   try{
@@ -430,7 +442,7 @@ function MI(props){
 function App(){
 var _vw=us("today"),vw=_vw[0],setVw=_vw[1];
 var _ts=us({}),ts=_ts[0],setTs=_ts[1];
-var _tl=us(DT.map(normTask)),tl=_tl[0],setTl=_tl[1];
+var _tl=us(function(){return readTaskCache()||DT.map(normTask)}),tl=_tl[0],setTl=_tl[1];
 var _dOw=us({}),dOw=_dOw[0],setDOw=_dOw[1];
 var _bOw=us({}),bOw=_bOw[0],setBOw=_bOw[1];
 var _msgs=us({}),msgs=_msgs[0],setMsgs=_msgs[1];
@@ -486,7 +498,22 @@ ue(function(){
   }
   var loadFallback=setTimeout(markLoaded,2500);
   u.push(subDoc("ts",function(d){if(d.exists){fromServer.current++;setTs(d.data());setTimeout(function(){fromServer.current--},500)}}));
-  u.push(subDoc("tl",function(d){if(d.exists&&d.data().l){fromServer.current++;var safeList=Array.isArray(d.data().l)?d.data().l.filter(function(x){return x&&typeof x==="object"}).map(normTask):[];setTl(safeList);setTimeout(function(){fromServer.current--},500)}}));
+  u.push(subDoc("tl",function(d){
+    if(d.exists&&d.data().l){
+      fromServer.current++;
+      var safeList=Array.isArray(d.data().l)?d.data().l.filter(function(x){return x&&typeof x==="object"}).map(normTask):[];
+      setTl(safeList);
+      writeTaskCache(safeList);
+      setTimeout(function(){fromServer.current--},500);
+      return;
+    }
+    var cached=readTaskCache();
+    if(cached&&cached.length){
+      fromServer.current++;
+      setTl(cached);
+      setTimeout(function(){fromServer.current--},500);
+    }
+  }));
   u.push(subDoc("dOw",function(d){if(d.exists){fromServer.current++;setDOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(subDoc("bOw",function(d){if(d.exists){fromServer.current++;setBOw(d.data());setTimeout(function(){fromServer.current--},500)}}));
   u.push(subDoc("msgs",function(d){if(d.exists){fromServer.current++;setMsgs(normalizeMsgStore(d.data()));setTimeout(function(){fromServer.current--},500)}}));
@@ -520,6 +547,7 @@ function saveMsgsSafe(data){
 function canSaveDoc(doc){return ld&&fromServer.current<=0&&!!loadedDocs.current[doc]}
 ue(function(){if(!canSaveDoc("ts"))return;var t=setTimeout(function(){saveDoc("ts",ts)},500);return function(){clearTimeout(t)}},[ts,ld]);
 ue(function(){if(!canSaveDoc("tl"))return;var t=setTimeout(function(){saveDoc("tl",{l:tl})},500);return function(){clearTimeout(t)}},[tl,ld]);
+ue(function(){writeTaskCache(tl)},[tl]);
 ue(function(){if(!canSaveDoc("dOw"))return;var t=setTimeout(function(){saveDoc("dOw",dOw)},500);return function(){clearTimeout(t)}},[dOw,ld]);
 ue(function(){if(!canSaveDoc("bOw"))return;var t=setTimeout(function(){saveDoc("bOw",bOw)},500);return function(){clearTimeout(t)}},[bOw,ld]);
 ue(function(){if(!canSaveDoc("msgs"))return;var t=setTimeout(function(){saveDoc("msgs",msgs)},500);return function(){clearTimeout(t)}},[msgs,ld]);
