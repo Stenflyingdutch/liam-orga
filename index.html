@@ -688,6 +688,11 @@ var reactivateQuickReminder=uc(function(taskId,owner){
     return n;
   });
 },[sDay]);
+function scopeForMentalTerm(term){
+  if(term==="yearly")return "year";
+  if(term==="quarterly")return "quarter";
+  return "month";
+}
 var applyMentalTermAssignment=uc(function(tid,per,scope,date){
   var d=date||sDay;
   var start,end;
@@ -1003,6 +1008,19 @@ var reminderTodayTasks=um(function(){
     if(done&&doneAt!==dky(sDay))return;
     list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:qDay,parentTaskId:t.id,isReminder:true,isQuickGenerated:true,reminderDate:qDay,done:done,isDueToday:qDay===todayKey});
   });
+  Object.keys(rDone).forEach(function(rid){
+    if(String(rid).indexOf("__rem__quick__")<0)return;
+    var doneAt=rDone[rid]||"";
+    if(doneAt!==todayKey)return;
+    if(list.some(function(it){return it.id===rid}))return;
+    var m=String(rid).match(/^(.*)__rem__quick__([0-9]{4}-[0-9]{2}-[0-9]{2})$/);
+    if(!m)return;
+    var tid=m[1],qDay=m[2];
+    var t=tMap[tid];
+    if(!t||t.kind!=="mental")return;
+    var ro=gOw(t.id,sDay);if(ro==="NONE")return;
+    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:qDay,parentTaskId:t.id,isReminder:true,isQuickGenerated:true,reminderDate:qDay,done:true,isDueToday:qDay===todayKey});
+  });
   list.sort(function(a,b){
     if(a.done!==b.done)return a.done?1:-1;
     if(a.isDueToday!==b.isDueToday)return a.isDueToday?-1:1;
@@ -1036,8 +1054,11 @@ var savT=function(data){
   if(data.f==="once"&&!data.onDate)data.onDate=dky(sDay);
   var oldTask=data.id?tMap[data.id]:null;
   var prevSavedOwner=data.id?nOw((oldTask&&oldTask.o)||(bOw[data.id])||"NONE"):"NONE";
+  var prevPeriodOwner=data.id&&oldTask&&oldTask.kind==="mental"?nOw(gOw(data.id,sDay)):"NONE";
   var nextOwner=nOw(data.o);
+  var isMentalPeriodScopedEdit=data.kind==="mental"&&data.id&&((data.mlTerm||"monthly")!=="permanent");
   var clearReminderOnOwnerSwitch=data.kind==="mental"&&data.id&&
+    !isMentalPeriodScopedEdit&&
     ((prevSavedOwner==="SANDER"&&nextOwner==="NATA")||(prevSavedOwner==="NATA"&&nextOwner==="SANDER"));
   if(clearReminderOnOwnerSwitch){
     data.reminderDate="";
@@ -1047,8 +1068,19 @@ var savT=function(data){
   delete persistData.weekPlan;
   var taskId=data.id;
   if(data.id){
+    if(data.kind==="mental"&&(data.mlTerm||"monthly")!=="permanent"){
+      persistData.o=(oldTask&&oldTask.o)||prevSavedOwner||"NONE";
+    }
     setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,persistData):t})});
-    if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n});
+    if(data.kind==="mental"){
+      if((data.mlTerm||"monthly")==="permanent"){
+        if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n});
+      }else if(nextOwner!==prevPeriodOwner){
+        applyMentalTermAssignment(data.id,nextOwner,scopeForMentalTerm(data.mlTerm||"monthly"),sDay);
+      }
+    }else if(data.o){
+      setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n});
+    }
     addTaskEventMsg("update",data.x||"Unbenannte Aufgabe");
   }else{
     var nn=Object.assign({},persistData,{id:nuid()});
