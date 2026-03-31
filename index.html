@@ -673,17 +673,28 @@ var isD=uc(function(tid,f,d){
   if(f==="once"&&String(tid).indexOf("__rem__")>=0)return !!rDone[tid];
   return !!ts[ckKey(tid,f,date)];
 },[ts,sDay,rDone]);
-var tog=uc(function(tid,f,d){
-  var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
-  if(String(tid).indexOf("__rem__")>=0){
-    setRDone(function(p){
-      var n=Object.assign({},p);
-      if(n[tid])delete n[tid];
-      else n[tid]=dky(date);
-      return n;
-    });
-    return;
-  }
+  var tog=uc(function(tid,f,d){
+    var date=d||sDay;var k=ckKey(tid,f,date);var t=tMap[tid];
+    if(String(tid).indexOf("__rem__")>=0){
+      setRDone(function(p){
+        var n=Object.assign({},p);
+        var wasDone=!!n[tid];
+        if(wasDone)delete n[tid];
+        else n[tid]=dky(date);
+        return n;
+      });
+      var quickMatch=String(tid).match(/^(.*)__rem__quick__([0-9]{4}-[0-9]{2}-[0-9]{2})$/);
+      if(quickMatch){
+        var parentId=quickMatch[1];
+        setMlQuick(function(prev){
+          if(!prev[parentId])return prev;
+          var n=Object.assign({},prev);
+          delete n[parentId];
+          return n;
+        });
+      }
+      return;
+    }
   setTs(function(p){
     var n=Object.assign({},p);var nextDone=!p[k];n[k]=nextDone;db.collection("v2").doc("ts").set(n);
     if(nextDone&&mlQuick[tid])setMlQuick(function(prev){var m=Object.assign({},prev);delete m[tid];return m});
@@ -927,16 +938,18 @@ var reminderTodayTasks=um(function(){
   var list=[];
   tl.forEach(function(t){
     if(t.kind!=="mental")return;
-    var r=getReminderDate(t);
-    if(!r)return;
-    var rd=pDate(r);if(!rd)return;
-    if(sDay<rd)return;
-    var ro=gOw(t.id,sDay);if(ro==="NONE")return;
-    var rid=mkReminderId(t.id,r);
-    var doneAt=rDone[rid]||"";
-    var done=!!doneAt;
-    if(done&&doneAt!==dky(sDay))return;
-    list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done,isDueToday:r===todayKey});
+    var dates=[];
+    if(typeof t.reminderDate==="string"&&t.reminderDate)dates.push(t.reminderDate);
+    if(Array.isArray(t.reminders))t.reminders.forEach(function(r){if(typeof r==="string"&&r&&dates.indexOf(r)<0)dates.push(r)});
+    dates.forEach(function(r){
+      if(r>todayKey)return;
+      var ro=gOw(t.id,sDay);if(ro==="NONE")return;
+      var rid=mkReminderId(t.id,r);
+      var doneAt=rDone[rid]||"";
+      var done=!!doneAt;
+      if(done&&doneAt!==dky(sDay))return;
+      list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done,isDueToday:r===todayKey});
+    });
   });
   Object.keys(mlQuick).forEach(function(tid){
     var t=tMap[tid];
