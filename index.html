@@ -468,6 +468,7 @@ var antonFromOpts=um(function(){return antonellaFromOptions()},[]);
 var antonToOpts=um(function(){return antonellaToOptions()},[]);
 var ANTONELLA_DEFAULT_ENTRY={from:"15:00",to:"19:00"};
 var fromServer=ur(0);
+var loadedDocs=ur({});
 var days=um(function(){return g7(wOff)},[wOff]);
 // Firebase sync
 ue(function(){
@@ -475,6 +476,7 @@ ue(function(){
   function markLoaded(){setLd(true)}
   function subDoc(doc,onData){
     return db.collection("v2").doc(doc).onSnapshot(function(d){
+      loadedDocs.current[doc]=true;
       markLoaded();
       onData(d);
     },function(e){
@@ -515,17 +517,18 @@ function saveMsgsSafe(data){
     console.error("msgs save failed",e);
   }
 }
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("ts",ts)},500);return function(){clearTimeout(t)}},[ts,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("tl",{l:tl})},500);return function(){clearTimeout(t)}},[tl,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("dOw",dOw)},500);return function(){clearTimeout(t)}},[dOw,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("bOw",bOw)},500);return function(){clearTimeout(t)}},[bOw,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("msgs",msgs)},500);return function(){clearTimeout(t)}},[msgs,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("rDone",rDone)},500);return function(){clearTimeout(t)}},[rDone,ld]);
-ue(function(){if(!ld||fromServer.current>0||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("mlQuick",mlQuick)},500);return function(){clearTimeout(t)}},[mlQuick,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("praise",{items:praise})},500);return function(){clearTimeout(t)}},[praise,ld]);
-ue(function(){if(!ld||fromServer.current>0)return;var t=setTimeout(function(){saveDoc("antonella",antonella)},500);return function(){clearTimeout(t)}},[antonella,ld]);
+function canSaveDoc(doc){return ld&&fromServer.current<=0&&!!loadedDocs.current[doc]}
+ue(function(){if(!canSaveDoc("ts"))return;var t=setTimeout(function(){saveDoc("ts",ts)},500);return function(){clearTimeout(t)}},[ts,ld]);
+ue(function(){if(!canSaveDoc("tl"))return;var t=setTimeout(function(){saveDoc("tl",{l:tl})},500);return function(){clearTimeout(t)}},[tl,ld]);
+ue(function(){if(!canSaveDoc("dOw"))return;var t=setTimeout(function(){saveDoc("dOw",dOw)},500);return function(){clearTimeout(t)}},[dOw,ld]);
+ue(function(){if(!canSaveDoc("bOw"))return;var t=setTimeout(function(){saveDoc("bOw",bOw)},500);return function(){clearTimeout(t)}},[bOw,ld]);
+ue(function(){if(!canSaveDoc("msgs"))return;var t=setTimeout(function(){saveDoc("msgs",msgs)},500);return function(){clearTimeout(t)}},[msgs,ld]);
+ue(function(){if(!canSaveDoc("rDone"))return;var t=setTimeout(function(){saveDoc("rDone",rDone)},500);return function(){clearTimeout(t)}},[rDone,ld]);
+ue(function(){if(!canSaveDoc("tOrd")||!tOrd.length)return;var t=setTimeout(function(){saveDoc("tOrd",{o:tOrd})},500);return function(){clearTimeout(t)}},[tOrd,ld]);
+ue(function(){if(!canSaveDoc("wPlan"))return;var t=setTimeout(function(){saveDoc("wPlan",wPlan)},500);return function(){clearTimeout(t)}},[wPlan,ld]);
+ue(function(){if(!canSaveDoc("mlQuick"))return;var t=setTimeout(function(){saveDoc("mlQuick",mlQuick)},500);return function(){clearTimeout(t)}},[mlQuick,ld]);
+ue(function(){if(!canSaveDoc("praise"))return;var t=setTimeout(function(){saveDoc("praise",{items:praise})},500);return function(){clearTimeout(t)}},[praise,ld]);
+ue(function(){if(!canSaveDoc("antonella"))return;var t=setTimeout(function(){saveDoc("antonella",antonella)},500);return function(){clearTimeout(t)}},[antonella,ld]);
 ue(function(){
   if(!tl.length)return;
   var now=new Date();
