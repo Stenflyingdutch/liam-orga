@@ -1378,7 +1378,7 @@ function extraView(){
   return ce("div",{className:"vp"},
     ce("div",{className:"lh"},
       ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load"),
-      ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"once",o:cu,ct:"daily",tm:"",dueDate:"",kind:"mental",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
+      ce("button",{className:"la",onClick:function(){var defOwner=fp!=="ALL"?fp:cu;setFd({x:"",detail:"",f:"once",o:defOwner,ct:"daily",tm:"",dueDate:"",kind:"mental",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
     ce("input",{className:"ls",placeholder:"🔍 Suchen...",value:srch,onChange:function(e){setSrch(e.target.value)}}),
     ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Wechselt automatisch am 1. von Monat, Quartal oder Jahr – oder bleibt mit „Fix“ dauerhaft bei einer Person."),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
@@ -1665,7 +1665,7 @@ function routineView(){
     }).join(" · ");
   }
   return ce("div",{className:"vp"},
-    ce("div",{className:"lh"},ce("div",{className:"lt"},"📋 Routinen"),ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"daily",o:"NONE",ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
+    ce("div",{className:"lh"},ce("div",{className:"lt"},"📋 Routinen"),ce("button",{className:"la",onClick:function(){var defOwner=fp!=="ALL"?fp:cu;setFd({x:"",detail:"",f:"daily",o:defOwner,ct:"daily",tm:"",dueDate:"",kind:"routine",dayMode:"workdays",rotate:"none",mlTerm:"monthly",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
     ce("input",{className:"ls",placeholder:"🔍 Suchen...",value:srch,onChange:function(e){setSrch(e.target.value)}}),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
       [["ALL","Alle",null],["SANDER","Sander","#1D4ED8"],["NATA","Nata","#BE185D"]].map(function(f){
