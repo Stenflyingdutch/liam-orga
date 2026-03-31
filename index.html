@@ -1178,6 +1178,7 @@ function MLCard(t){
   var ow=t.owner||gOw(t.id,sDay);var oc=OC[ow]||OC.NONE;
   var threadKey=mkKey(t.id,sDay);var legacyKey=legacyThreadKey(t.id,sDay);var unread=unreadFor(t.id,sDay);var msgCount=threadMsgsSafe(msgs,threadKey).concat(threadMsgsSafe(msgs,legacyKey)).filter(function(m){return !(m.hiddenFor&&m.hiddenFor[cu])}).length;
   var isQuickActive=mlQuick[t.id]===ow;
+  var isMentalTab=t.viewMode==="mentalTab";
   return ce("div",{key:t.id,className:"li"},
     ce("button",{className:"li-c",style:{border:"none",background:"none",textAlign:"left",padding:0,fontFamily:"inherit"},onClick:function(){setFd(Object.assign({},toEditData(t,ow),{weekPlan:typeof wPlan[t.id]==="object"?Object.assign({},wPlan[t.id]):null}));setMod({type:"edit"})}},
       ce("div",{className:"li-t"},t.x),
@@ -1189,11 +1190,13 @@ function MLCard(t){
       )
     ),
     ce("div",{style:{display:"flex",gap:4}},
+      isMentalTab?ce("button",{className:"lib libd",title:"Löschen",onClick:function(){if(confirm('"'+t.x+'" löschen?'))delT(t.id)}},"🗑"):[
       !isQuickActive?ce("button",{className:"plus-btn",title:"Heute hinzufügen",onClick:function(){
         setMlQuick(function(prev){var n=Object.assign({},prev);n[t.id]=ow;return n});
         setTs(function(prev){var n=Object.assign({},prev);delete n[ckKey(t.id,"asneeded",sDay)];return n});
       }},"＋"):null,
-      ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(t.id);if(unread>0)mkRdTaskDay(t.id,sDay)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null))
+      ce("button",{className:"lib",title:"Chat öffnen",onClick:function(){setVw("chat");setChatThread(t.id);if(unread>0)mkRdTaskDay(t.id,sDay)}},"💬",unread>0?ce("span",{className:"ubg",style:{marginLeft:2}},unread):msgCount>0?ce("span",{style:{fontSize:10,color:"#64748B",marginLeft:2}},msgCount):null)
+      ])
   );
 }
 // TODAY VIEW
@@ -1319,10 +1322,12 @@ function gamificationView(){
 }
 function extraView(){
   function filt(tasks){if(fp==="ALL")return tasks;return tasks.filter(function(t){return t.owner===fp})}
-  var tasks=filt(extraT);
+  var byOwner=filt(extraT);
+  var tasks=srch?byOwner.filter(function(t){return t.x.toLowerCase().indexOf(srch.toLowerCase())>=0}):byOwner;
   var grouped={};tasks.forEach(function(t){if(!grouped[t.ct])grouped[t.ct]={cat:cMap[t.ct],tasks:[]};grouped[t.ct].tasks.push(t)});
   return ce("div",{className:"vp"},
-    ce("div",{className:"lh"},ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load"),ce("button",{className:"la",onClick:function(){setFd({x:"",detail:"",f:"asneeded",o:"NONE",ct:"partner",tm:"",dueDate:"",kind:"mental",dayMode:"workdays",rotate:"none",mlTerm:"monthly",mlSwitchDate:"",reminderDate:""});setMod({type:"new"})}},"＋ Neu")),
+    ce("div",{className:"lh"},ce("div",{style:{fontSize:17,fontWeight:800,color:"#1E293B"}},"🧠 Mental Load")),
+    ce("input",{className:"ls",placeholder:"🔍 Suchen...",value:srch,onChange:function(e){setSrch(e.target.value)}}),
     ce("div",{style:{fontSize:12,color:"#94A3B8",marginBottom:10}},"Wechselt automatisch am 1. von Monat, Quartal oder Jahr – oder bleibt mit „Fix“ dauerhaft bei einer Person."),
     ce("div",{style:{display:"flex",gap:6,marginBottom:12}},
       [["ALL","Alle",null],["SANDER","Sander","#1D4ED8"],["NATA","Nata","#BE185D"]].map(function(f){
@@ -1336,7 +1341,7 @@ function extraView(){
       return ce("div",{key:k},
         ce("div",{style:{display:"flex",alignItems:"center",gap:6,padding:"8px 4px",fontSize:14,fontWeight:700,color:cat.c}},
           cat.i+" "+cat.t,ce("span",{style:{fontSize:11,color:"#94A3B8",fontWeight:600,marginLeft:"auto"}},"("+ct.length+")")),
-        ct.map(function(t){return ce(MLCard,t);})
+        ct.map(function(t){return ce(MLCard,Object.assign({},t,{viewMode:"mentalTab"}));})
       );
     })
   );
