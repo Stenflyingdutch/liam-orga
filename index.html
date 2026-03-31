@@ -654,6 +654,20 @@ var addM=uc(function(key,text){if(!text.trim()||!key)return;
     return n;
   });
 },[cu,sDay]);
+var addTaskEventMsg=uc(function(action,taskTitle){
+  if(!taskTitle||!cu)return;
+  var prefix=action==="create"?"📌 Aufgabe angelegt: ":action==="update"?"✏️ Aufgabe geändert: ":"🗑️ Aufgabe gelöscht: ";
+  var txt=prefix+taskTitle;
+  var newMsg={t:txt,fr:cu,ts:Date.now(),text:txt,from:cu,time:Date.now()};
+  setMsgs(function(p){
+    var n=Object.assign({},p);
+    var a=threadMsgsSafe(n,GENERAL_THREAD_ID).slice();
+    a.push(newMsg);
+    n[GENERAL_THREAD_ID]=a;
+    saveMsgsSafe(n);
+    return n;
+  });
+},[cu]);
 var mkRd=uc(function(key){setRdM(function(p){var m=msgs[key]||[];if(!m.length)return p;var n=Object.assign({},p);n[key]=m.length;return n})},[msgs]);
 var mkRdTaskDay=uc(function(tid,date){threadKeysForTaskOnDate(tid,date).forEach(function(k){mkRd(k)})},[mkRd]);
 var cMap=um(function(){var m={};CL.forEach(function(c){m[c.id]=c});return m},[]);
@@ -923,8 +937,17 @@ var savT=function(data){
   var persistData=Object.assign({},data);
   delete persistData.weekPlan;
   var taskId=data.id;
-  if(data.id){setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,persistData):t})});if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n})}
-  else{var nn=Object.assign({},persistData,{id:nuid()});taskId=nn.id;setTl(function(p){return p.concat([nn])});setBOw(function(p){var n=Object.assign({},p);n[nn.id]=nn.o;return n})}
+  if(data.id){
+    setTl(function(p){return p.map(function(t){return t.id===data.id?Object.assign({},t,persistData):t})});
+    if(data.o)setBOw(function(p){var n=Object.assign({},p);n[data.id]=data.o;return n});
+    addTaskEventMsg("update",data.x||"Unbenannte Aufgabe");
+  }else{
+    var nn=Object.assign({},persistData,{id:nuid()});
+    taskId=nn.id;
+    setTl(function(p){return p.concat([nn])});
+    setBOw(function(p){var n=Object.assign({},p);n[nn.id]=nn.o;return n});
+    addTaskEventMsg("create",nn.x||"Unbenannte Aufgabe");
+  }
   if(clearReminderOnOwnerSwitch){
     setRDone(function(prev){
       var n=Object.assign({},prev);
@@ -944,6 +967,7 @@ var savT=function(data){
   }
   setMod(null);};
 var delT=function(id){
+  var task=tMap[id];
   setTl(function(p){return p.filter(function(t){return t.id!==id})});
   // Clean up messages
   setMsgs(function(p){var n=Object.assign({},p);delete n[id];saveMsgsSafe(n);return n});
@@ -951,6 +975,7 @@ var delT=function(id){
   setTOrd(function(p){return p.filter(function(x){return x!==id})});
   // Clean up owners
   setBOw(function(p){var n=Object.assign({},p);delete n[id];return n});
+  addTaskEventMsg("delete",(task&&task.x)||"Unbenannte Aufgabe");
   setMod(null);setExp(null);
 };
 // Quick add task from today view + notify partner
@@ -961,9 +986,7 @@ function quickAdd(data){
   newTask.onDate=dky(sDay);
   setTl(function(p){return p.concat([newTask])});
   setBOw(function(p){var n=Object.assign({},p);n[newId]=data.o||cu;return n});
-  // Send as chat message to notify partner
-  var notifyMsg={t:"📌 Neue Aufgabe: "+data.x.trim(),fr:cu,ts:Date.now(),text:"📌 Neue Aufgabe: "+data.x.trim(),from:cu,time:Date.now()};
-  setMsgs(function(p){var n=Object.assign({},p);var a=n[newId]?n[newId].slice():[];a.push(notifyMsg);n[newId]=a;saveMsgsSafe(n);return n});
+  addTaskEventMsg("create",data.x.trim());
   setMod(null);
 }
 // Move task up or down - swaps with neighbor in same section
