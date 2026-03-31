@@ -667,6 +667,7 @@ function ckKey(tid,freq,date){
     if(String(tid).indexOf("__rem__")>=0)return tid; // keep reminder completion across week days
     return tid+"_"+dky(date);
   }
+  if(freq==="asneeded")return tid+"__asneeded__"+dky(date);
   if(freq==="weekly")return tid+"_"+wky(date);
   if(freq==="monthly")return tid+"_"+mky(date);
   return tid+"_cur";
@@ -951,8 +952,9 @@ var reminderTodayTasks=um(function(){
     if(term!=="permanent"&&termIdx(sDay,term)!==termIdx(rd,term))return;
     var ro=gOw(t.id,sDay);if(ro==="NONE")return;
     var rid=mkReminderId(t.id,r);
-    var done=!!rDone[rid];
-    if(done&&dky(sDay)!==r)return;
+    var doneAt=rDone[rid]||"";
+    var done=!!doneAt;
+    if(done&&doneAt!==dky(sDay))return;
     list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:r,parentTaskId:t.id,isReminder:true,reminderDate:r,done:done});
   });
   return list;
@@ -979,9 +981,10 @@ var savT=function(data){
   if(data.kind==="routine"||data.kind==="mental"||data.f==="daily")data.dueDate="";
   if(data.f==="once"&&!data.onDate)data.onDate=dky(sDay);
   var oldTask=data.id?tMap[data.id]:null;
-  var prevBaseOwner=data.id?(bOw[data.id]||(oldTask&&oldTask.o)||"NONE"):"NONE";
+  var prevSavedOwner=data.id?nOw((oldTask&&oldTask.o)||(bOw[data.id])||"NONE"):"NONE";
+  var nextOwner=nOw(data.o);
   var clearReminderOnOwnerSwitch=data.kind==="mental"&&data.id&&
-    ((prevBaseOwner==="SANDER"&&data.o==="NATA")||(prevBaseOwner==="NATA"&&data.o==="SANDER"));
+    ((prevSavedOwner==="SANDER"&&nextOwner==="NATA")||(prevSavedOwner==="NATA"&&nextOwner==="SANDER"));
   if(clearReminderOnOwnerSwitch){
     data.reminderDate="";
     data.reminders=[];
