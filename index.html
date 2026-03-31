@@ -641,18 +641,15 @@ var gOw=uc(function(tid,date){
 ue(function(){
   var changed=false;
   var nextQuick=Object.assign({},mlQuick);
-  var realToday=dky(new Date());
-  Object.keys(nextQuick).forEach(function(tid){
+    Object.keys(nextQuick).forEach(function(tid){
     var task=tMap[tid];
     if(!task||task.kind!=="mental"){delete nextQuick[tid];changed=true;return}
     var meta=getMlQuickMeta(nextQuick[tid]);
-    var owner=gOw(tid,sDay);
-    if(owner==="NONE"||meta.owner!==owner){delete nextQuick[tid];changed=true;return}
-    if(meta.day&&meta.day<realToday){delete nextQuick[tid];changed=true;}
+    if(!meta.owner||meta.owner==="NONE"){delete nextQuick[tid];changed=true;return}
   });
   if(!changed)return;
   setMlQuick(nextQuick);
-},[mlQuick,tMap,gOw,sDay]);
+},[mlQuick,tMap]);
 var sOwn=uc(function(tid,per,scope,date){
   if(scope==="day"){setDOw(function(p){var n=Object.assign({},p);n[tid+"_"+dky(date)]=per;return n})}
   else if(scope==="week"){var d=new Date(date);var dow=d.getDay();for(var i=0;i<7;i++){(function(ii){var nd=new Date(d);nd.setDate(d.getDate()-dow+ii);setDOw(function(p){var n=Object.assign({},p);n[tid+"_"+dky(nd)]=per;return n})})(i)}}
@@ -947,13 +944,20 @@ var reminderTodayTasks=um(function(){
     if(!t||t.kind!=="mental")return;
     var meta=getMlQuickMeta(mlQuick[tid]);
     var qDay=meta.day||dky(sDay);
-    if(qDay!==dky(sDay))return;
-    var ro=gOw(t.id,sDay);if(ro==="NONE")return;
+    if(qDay>dky(sDay))return;
+    var ro=meta.owner||gOw(t.id,sDay);if(ro==="NONE")return;
     var rid=mkReminderId(t.id,"quick__"+qDay);
     var doneAt=rDone[rid]||"";
     var done=!!doneAt;
     if(done&&doneAt!==dky(sDay))return;
     list.push({id:rid,x:"🔔 "+t.x,f:"once",o:ro,owner:ro,ct:t.ct,cat:cMap[t.ct],dueDate:qDay,parentTaskId:t.id,isReminder:true,isQuickGenerated:true,reminderDate:qDay,done:done});
+  });
+  list.sort(function(a,b){
+    if(a.done!==b.done)return a.done?1:-1;
+    var ad=a.dueDate||"";var bd=b.dueDate||"";
+    if(ad<bd)return -1;
+    if(ad>bd)return 1;
+    return String(a.x||"").localeCompare(String(b.x||""),"de");
   });
   return list;
 },[tl,tMap,mlQuick,sDay,cMap,gOw,rDone]);
